@@ -1,0 +1,13 @@
+schema_version: 1
+
+package:
+  id: semantic_fixture
+  namespace: semantic_fixture
+  name: semantic_fixture
+  warehouse: duckdb
+  schema_strict: true
+
+defaults:
+  dimension:
+    groupable: true
+    filterable: true

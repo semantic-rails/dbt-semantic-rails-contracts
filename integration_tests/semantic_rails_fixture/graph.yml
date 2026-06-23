@@ -1,0 +1,6 @@
+graph:
+  entities:
+    customer:
+      label: Customer
+      key: customer_id
+      model: customers

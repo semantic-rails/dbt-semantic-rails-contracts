@@ -1,0 +1,23 @@
+semantic_rails_contracts:
+  packages:
+    - package_id: connector_customers
+      namespace: customers
+      contract_version: 1
+      semantic_hash: sha256:connector-customers
+      accepted_semantic_hashes:
+        - sha256:connector-customers
+      policy:
+        severity: error
+        require_model_contract: true
+        require_model_version: true
+      models:
+        - semantic_model_id: customers
+          dbt_resource_type: model
+          dbt_model: customers
+          dbt_package: semantic_rails_contracts_connector_customers
+          dbt_version: 1
+          latest_version: 1
+          access: public
+          contract_enforced: true
+          columns:
+            - name: definitely_missing_customer_column

@@ -1,0 +1,4 @@
+dbt-core>=1.11,<2.0
+dbt-duckdb>=1.10,<2.0
+PyYAML>=6.0
+sqlglot>=25.0

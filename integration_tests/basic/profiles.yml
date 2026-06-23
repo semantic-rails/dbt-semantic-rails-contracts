@@ -1,0 +1,7 @@
+semantic_rails_contracts_integration_tests:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: target/integration.duckdb
+      threads: 4

@@ -1,0 +1,17 @@
+models:
+  revenue:
+    relation: orders
+    entities:
+      customer:
+        expr: orders.customer_id
+    dimensions:
+      order_month:
+        expr: DATE_TRUNC('month', orders.ordered_at)
+      status_bucket:
+        expr: CASE WHEN status = 'active' THEN status ELSE 'inactive' END
+    measures:
+      revenue:
+        expr: SUM(order_amount)
+      distinct_customers:
+        expr: COUNT(DISTINCT customer_id)
+

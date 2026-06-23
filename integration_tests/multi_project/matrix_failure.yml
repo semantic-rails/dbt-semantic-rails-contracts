@@ -1,0 +1,12 @@
+version: 1
+
+defaults:
+  profiles_dir: .
+  run_deps: false
+  run_parse: true
+
+projects:
+  - name: customers_connector_failure
+    project_dir: connector_customers
+    target: dev
+    contract_file: semantic_rails_contract_failure.yml

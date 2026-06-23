@@ -1,0 +1,35 @@
+version: 2
+
+macros:
+  - name: semantic_rails_assert_contracts
+    description: Fails when a Semantic Rails resource contract payload does not match the dbt graph.
+    arguments:
+      - name: contract
+        type: dict
+        description: Optional contract payload. Defaults to vars.semantic_rails_contracts.
+      - name: var_name
+        type: string
+        description: dbt var name to read when contract is omitted.
+      - name: warn_only
+        type: boolean
+        description: Emit warnings instead of raising a compiler error.
+
+  - name: semantic_rails_contract_report
+    description: Prints a JSON summary of Semantic Rails resource contract issues without failing.
+    arguments:
+      - name: contract
+        type: dict
+        description: Optional contract payload. Defaults to vars.semantic_rails_contracts.
+      - name: var_name
+        type: string
+        description: dbt var name to read when contract is omitted.
+
+  - name: test_semantic_rails_required_columns
+    description: Generic data test that checks a built relation contains required columns.
+    arguments:
+      - name: model
+        type: relation
+        description: Relation under test.
+      - name: required_columns
+        type: list
+        description: Required column names or column mappings with name fields.

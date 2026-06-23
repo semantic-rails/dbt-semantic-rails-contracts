@@ -1,0 +1,17 @@
+version: 1
+
+defaults:
+  profiles_dir: .
+  run_deps: true
+  run_parse: true
+
+projects:
+  - name: orders_connector
+    project_dir: connector_orders
+    target: dev
+    contract_file: semantic_rails_contract.yml
+
+  - name: customers_connector
+    project_dir: connector_customers
+    target: dev
+    contract_file: semantic_rails_contract.yml

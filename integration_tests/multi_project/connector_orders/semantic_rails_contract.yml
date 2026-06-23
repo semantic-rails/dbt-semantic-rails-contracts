@@ -1,0 +1,27 @@
+semantic_rails_contracts:
+  packages:
+    - package_id: connector_orders
+      namespace: orders
+      contract_version: 1
+      semantic_hash: sha256:connector-orders
+      accepted_semantic_hashes:
+        - sha256:connector-orders
+      policy:
+        severity: error
+        require_model_contract: true
+        require_model_version: true
+        type_check: compatible
+      models:
+        - semantic_model_id: orders
+          dbt_resource_type: model
+          dbt_model: orders
+          dbt_package: semantic_rails_contracts_connector_orders
+          dbt_version: 1
+          latest_version: 1
+          access: public
+          contract_enforced: true
+          columns:
+            - name: order_id
+              data_type: integer
+            - name: customer_id
+              data_type: integer

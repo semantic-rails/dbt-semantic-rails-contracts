@@ -1,0 +1,8 @@
+semantic_rails_contracts_connector_orders:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: target/orders.duckdb
+      schema: orders
+      threads: 1

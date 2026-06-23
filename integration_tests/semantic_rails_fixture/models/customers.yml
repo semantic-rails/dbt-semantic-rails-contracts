@@ -1,0 +1,18 @@
+model:
+  id: customers
+  relation: customers
+  description: Minimal Semantic Rails fixture for dbt package export tests.
+  entities:
+    customer: {}
+  dimensions:
+    customer_name:
+      label: Customer name
+      kind: categorical
+  measures:
+    customer_count:
+      label: Customers
+      kind: entity_count
+      entity_key: customer_id
+      accumulation:
+        kind: population
+      value_type: count

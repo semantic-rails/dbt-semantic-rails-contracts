@@ -1,0 +1,39 @@
+version: 1
+
+defaults:
+  profiles_dir: .
+  run_deps: true
+  run_parse: true
+
+projects:
+  - name: orders_warehouse
+    project_dir: ../dbt-orders
+    target: ci
+    contract_file: semantic_rails_contract.yml
+
+  - name: customers_warehouse
+    project_dir: ../dbt-customers
+    target: ci
+    contract_file: semantic_rails_contract.yml
+
+  - name: product_catalog_connector
+    project_dir: ../dbt-products
+    profile: product_catalog
+    target: prod
+    contract:
+      packages:
+        - package_id: product_catalog
+          semantic_hash: sha256:replace-with-exported-hash
+          accepted_semantic_hashes:
+            - sha256:replace-with-exported-hash
+          models:
+            - semantic_model_id: products
+              dbt_resource_type: model
+              dbt_model: products
+              dbt_package: dbt_products
+              dbt_version: 1
+              latest_version: 1
+              access: public
+              contract_enforced: true
+              columns:
+                - name: product_id

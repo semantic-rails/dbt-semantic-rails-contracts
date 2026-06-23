@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: customers
+    access: public
+    latest_version: 1
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: customer_id
+        data_type: integer
+      - name: customer_name
+        data_type: varchar
+    versions:
+      - v: 1

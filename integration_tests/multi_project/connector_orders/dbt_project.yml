@@ -1,0 +1,13 @@
+name: semantic_rails_contracts_connector_orders
+version: 1.0.0
+config-version: 2
+
+profile: semantic_rails_contracts_connector_orders
+
+model-paths: ["models"]
+clean-targets:
+  - target
+  - dbt_packages
+  - logs
+
+require-dbt-version: [">=1.11.0", "<2.0.0"]

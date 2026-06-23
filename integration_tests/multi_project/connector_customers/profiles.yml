@@ -1,0 +1,8 @@
+semantic_rails_contracts_connector_customers:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: target/customers.duckdb
+      schema: customers
+      threads: 1

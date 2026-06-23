@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: orders
+    access: public
+    latest_version: 1
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: order_id
+        data_type: integer
+      - name: customer_id
+        data_type: integer
+    versions:
+      - v: 1

@@ -1,0 +1,46 @@
+vars:
+  semantic_rails_contracts:
+    packages:
+      - package_id: example_semantic_package
+        namespace: example
+        contract_version: 1
+        semantic_hash: "sha256:replace-with-exported-hash"
+        accepted_semantic_hashes:
+          - "sha256:replace-with-exported-hash"
+        policy:
+          severity: error
+          require_model_contract: true
+          require_model_version: true
+          type_check: compatible
+          allow_extra_columns: true
+        models:
+          - semantic_model_id: orders
+            dbt_resource_type: model
+            dbt_model: orders
+            dbt_package: my_dbt_project
+            dbt_version: 1
+            latest_version: 1
+            access: public
+            contract_enforced: true
+            columns:
+              - name: order_id
+                data_type: varchar
+                required_by: ["entity.order"]
+              - name: ordered_at
+                data_type: timestamp
+                required_by: ["time.ordered_at"]
+              - name: customer_id
+                data_type: varchar
+                required_by: ["entity.customer"]
+        resources:
+          - semantic_model_id: raw_customers
+            dbt_resource_type: source
+            dbt_source_name: app
+            dbt_source_table: raw_customers
+            dbt_package: my_dbt_project
+            dbt_schema: raw
+            dbt_identifier: customers
+            columns:
+              - name: customer_id
+                data_type: varchar
+                required_by: ["entity.customer"]
