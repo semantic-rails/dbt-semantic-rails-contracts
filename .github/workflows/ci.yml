@@ -154,3 +154,25 @@ jobs:
           sha256sum engine-dist/*.whl >> "${GITHUB_STEP_SUMMARY}"
       - name: Run integration matrix against the exact wheel
         run: ./scripts/run_integration_tests.sh
+
+  all-checks:
+    name: All checks pass
+    if: ${{ always() }}
+    needs: [metadata, released-engine, engine-candidate]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every applicable compatibility lane
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          METADATA_RESULT: ${{ needs.metadata.result }}
+          RELEASED_ENGINE_RESULT: ${{ needs['released-engine'].result }}
+          ENGINE_CANDIDATE_RESULT: ${{ needs['engine-candidate'].result }}
+        run: |
+          test "$METADATA_RESULT" = "success"
+          if [[ "$EVENT_NAME" == "pull_request" || "$EVENT_NAME" == "push" ]]; then
+            test "$RELEASED_ENGINE_RESULT" = "success"
+            test "$ENGINE_CANDIDATE_RESULT" = "skipped"
+          else
+            test "$RELEASED_ENGINE_RESULT" = "skipped"
+            test "$ENGINE_CANDIDATE_RESULT" = "success"
+          fi
