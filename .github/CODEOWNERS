@@ -3,7 +3,9 @@
 /dbt_project.yml @wtremml18
 /macros/ @wtremml18
 /schemas/ @wtremml18
+/compatibility/ @wtremml18
 /compatibility.json @wtremml18
+/scripts/check_schema_compatibility.py @wtremml18
 /scripts/export_semantic_rails_contract.py @wtremml18
 /scripts/run_integration_tests.sh @wtremml18
 /scripts/generate_release_provenance.py @wtremml18

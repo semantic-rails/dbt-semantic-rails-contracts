@@ -50,8 +50,13 @@ codes.
 ## Compatibility
 
 `contract_format_version` and `binding_version` are independent major versions.
-Additive optional fields do not increment a major. A breaking semantic or dbt
-binding change does.
+Once a schema ID is released, its accepted shape is immutable; extensions use a
+new versioned schema and dual-read migration instead of editing v1 in place.
+
+The released adapter-owned v1 schemas are frozen under
+`compatibility/baseline/v1`. CI compares their parsed JSON to the working
+schemas and rejects any in-place change. A contract-shape change therefore
+requires a new schema major and an explicit dual-read migration.
 
 The pre-v1 combined `packages/models/resources` payload is accepted temporarily
 and emits `LEGACY_CONTRACT_FORMAT_DEPRECATED`. Export tooling writes only the

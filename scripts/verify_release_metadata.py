@@ -99,6 +99,13 @@ def main(argv: list[str] | None = None) -> int:
     local_schema_names = set(manifest["adapter_owned_schema_files"]) | {
         "validation_report.v1.json"
     }
+    baseline_schema_names = {
+        path.name for path in (ROOT / "compatibility" / "baseline" / "v1").glob("*.json")
+    }
+    if baseline_schema_names != set(manifest["adapter_owned_schema_files"]):
+        raise SystemExit(
+            "The immutable v1 baseline must contain every adapter-owned schema exactly once."
+        )
     for contract_name, contract in manifest["contracts"].items():
         schema_id = str(contract["schema_id"])
         if not schema_id.startswith(expected_prefix):

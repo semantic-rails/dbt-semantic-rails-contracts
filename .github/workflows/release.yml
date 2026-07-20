@@ -30,6 +30,7 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           python -m pip install "PyYAML>=6.0"
+          python scripts/check_schema_compatibility.py
           python scripts/verify_release_metadata.py \
             --tag "${RELEASE_TAG}" \
             --verify-engine-tag \

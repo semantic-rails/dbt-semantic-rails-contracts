@@ -10,7 +10,9 @@ Before tagging a public release:
    40-character commit in `compatibility.json`.
 5. Validate `schemas/dbt_binding.v1.json`, the composed and dbt report schema
    references, the byte-identical canonical report compatibility copy, and
-   `integration_tests/contracts/golden_composed_v1.yml`.
+   `integration_tests/contracts/golden_composed_v1.yml`. Run
+   `scripts/check_schema_compatibility.py` and confirm released v1 schema shapes
+   remain identical to the immutable baseline.
 6. Run `./scripts/run_integration_tests.sh` from the package root against the
    released engine package.
 7. Confirm the minimum-engine/minimum-dbt and latest-engine/latest-dbt required

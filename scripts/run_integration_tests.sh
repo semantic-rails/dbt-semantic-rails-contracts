@@ -249,6 +249,7 @@ else
   echo "==> skip engine-backed exporter checks (dbt runtime compatibility lane)"
 fi
 
+run_success "schema compatibility" "${PYTHON[@]}" "${ROOT_DIR}/scripts/check_schema_compatibility.py"
 run_success "clean" "${DBT[@]}" clean --profiles-dir .
 run_success "deps" "${DBT[@]}" deps --profiles-dir .
 run_success "parse" "${DBT[@]}" parse --profiles-dir .
