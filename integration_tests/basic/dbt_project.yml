@@ -14,78 +14,94 @@ clean-targets:
   - dbt_packages
   - logs
 
-require-dbt-version: [">=1.11.0", "<2.0.0"]
+require-dbt-version: [">=1.11.2", "<2.0.0"]
 
 vars:
   semantic_rails_contracts:
-    packages:
-      - package_id: semantic_fixture
-        namespace: semantic_fixture
-        contract_version: 1
-        semantic_hash: sha256:fixture
-        accepted_semantic_hashes:
-          - sha256:fixture
-        policy:
-          severity: error
-          require_model_contract: true
-          require_model_version: true
-          type_check: compatible
-          allow_extra_columns: true
-        models:
-          - semantic_model_id: customers
-            dbt_model: customers
-            dbt_package: semantic_rails_contracts_integration_tests
-            dbt_resource_type: model
-            dbt_version: 1
-            latest_version: 1
-            access: public
-            dbt_alias: customers_v1
-            contract_enforced: true
+    contract_format_version: 1
+    semantic:
+      producer:
+        name: semantic-rails
+        version: 0.2.0
+      packages:
+        - package_id: semantic_fixture
+          namespace: semantic_fixture
+          package_schema_version: 1
+          semantic_hash: sha256:bd6a5611f8d4b7ae94b58312a81170ace2dcba9a282e4ebe3e5a10324207049f
+          resources:
+            - semantic_model_id: customers
+              relation: customers
+              columns:
+                - name: customer_id
+                  data_type: integer
+                  required_by: ["entity.customer"]
+                - name: customer_name
+                  data_type: varchar
+                  required_by: ["dimension.customer_name"]
+            - semantic_model_id: customer_seed
+              relation: contract_seed
+              columns:
+                - name: seed_id
+                  data_type: integer
+                  required_by: ["entity.seed"]
+                - name: seed_name
+                  data_type: varchar
+                  required_by: ["dimension.seed_name"]
+            - semantic_model_id: raw_customer_source
+              relation: raw_customers
+              columns:
+                - name: customer_id
+                  data_type: integer
+                  required_by: ["entity.customer"]
+                - name: customer_name
+                  data_type: varchar
+                  required_by: ["dimension.customer_name"]
+            - semantic_model_id: customer_seed_history
+              relation: contract_seed_snapshot
+              columns:
+                - name: seed_id
+                  data_type: integer
+                  required_by: ["entity.seed"]
+                - name: seed_name
+                  data_type: varchar
+                  required_by: ["dimension.seed_name"]
+    binding:
+      kind: dbt
+      binding_version: 1
+      packages:
+        - package_id: semantic_fixture
+          policy:
+            severity: error
+            require_model_contract: true
+            require_model_version: true
+            type_check: compatible
             allow_extra_columns: true
-            columns:
-              - name: customer_id
-                data_type: integer
-                required_by: ["entity.customer"]
-              - name: customer_name
-                data_type: varchar
-                required_by: ["dimension.customer_name"]
-        resources:
-          - semantic_model_id: customer_seed
-            dbt_resource_type: seed
-            dbt_model: contract_seed
-            dbt_package: semantic_rails_contracts_integration_tests
-            dbt_schema: main
-            dbt_identifier: contract_seed
-            columns:
-              - name: seed_id
-                data_type: integer
-                required_by: ["entity.seed"]
-              - name: seed_name
-                data_type: varchar
-                required_by: ["dimension.seed_name"]
-          - semantic_model_id: raw_customer_source
-            dbt_resource_type: source
-            dbt_source_name: app
-            dbt_source_table: raw_customers
-            dbt_model: raw_customers
-            dbt_package: semantic_rails_contracts_integration_tests
-            dbt_schema: main
-            dbt_identifier: raw_customers
-            columns:
-              - name: customer_id
-                data_type: integer
-                required_by: ["entity.customer"]
-              - name: customer_name
-                data_type: varchar
-                required_by: ["dimension.customer_name"]
-          - semantic_model_id: customer_seed_history
-            dbt_resource_type: snapshot
-            dbt_model: contract_seed_snapshot
-            dbt_package: semantic_rails_contracts_integration_tests
-            columns:
-              - name: seed_id
-                data_type: integer
-                required_by: ["entity.seed"]
-              - name: seed_name
-                data_type: varchar
-                required_by: ["dimension.seed_name"]
+          resources:
+            - semantic_model_id: customers
+              dbt_model: customers
+              dbt_package: semantic_rails_contracts_integration_tests
+              dbt_resource_type: model
+              dbt_version: 1
+              latest_version: 1
+              access: public
+              dbt_alias: customers_v1
+              contract_enforced: true
+              allow_extra_columns: true
+            - semantic_model_id: customer_seed
+              dbt_resource_type: seed
+              dbt_model: contract_seed
+              dbt_package: semantic_rails_contracts_integration_tests
+              dbt_schema: main
+              dbt_identifier: contract_seed
+            - semantic_model_id: raw_customer_source
+              dbt_resource_type: source
+              dbt_source_name: app
+              dbt_source_table: raw_customers
+              dbt_model: raw_customers
+              dbt_package: semantic_rails_contracts_integration_tests
+              dbt_schema: main
+              dbt_identifier: raw_customers
+            - semantic_model_id: customer_seed_history
+              dbt_resource_type: snapshot
+              dbt_model: contract_seed_snapshot
+              dbt_package: semantic_rails_contracts_integration_tests

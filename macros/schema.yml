@@ -2,7 +2,7 @@ version: 2
 
 macros:
   - name: semantic_rails_assert_contracts
-    description: Fails when a Semantic Rails resource contract payload does not match the dbt graph.
+    description: Strictly composes a Semantic Rails contract v1 with a dbt binding v1 and fails when the merged requirements do not match the dbt graph. Legacy combined payloads are read during the 0.x deprecation window.
     arguments:
       - name: contract
         type: dict
@@ -15,7 +15,7 @@ macros:
         description: Emit warnings instead of raising a compiler error.
 
   - name: semantic_rails_contract_report
-    description: Prints a JSON summary of Semantic Rails resource contract issues without failing.
+    description: Prints a versioned ValidationReportV1 JSON envelope without failing.
     arguments:
       - name: contract
         type: dict

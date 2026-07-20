@@ -1,0 +1,126 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  build:
+    name: Build and verify exact release artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Verify release and approved engine identities
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python -m pip install "PyYAML>=6.0"
+          python scripts/verify_release_metadata.py \
+            --tag "${RELEASE_TAG}" \
+            --verify-engine-tag \
+            --github-env "${GITHUB_ENV}"
+          TAG_COMMIT="$(git rev-list -n 1 "${RELEASE_TAG}")"
+          git fetch origin main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "${TAG_COMMIT}" refs/remotes/origin/main; then
+            echo "Release tag commit ${TAG_COMMIT} is not reachable from origin/main." >&2
+            exit 1
+          fi
+          echo "TAG_COMMIT=${TAG_COMMIT}" >> "${GITHUB_ENV}"
+      - name: Build the immutable source artifact once
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          mkdir -p dist candidate
+          ARCHIVE="dbt-semantic-rails-contracts-${RELEASE_TAG}.tar.gz"
+          git archive \
+            --format=tar.gz \
+            --prefix="dbt-semantic-rails-contracts-${RELEASE_TAG#v}/" \
+            --output="dist/${ARCHIVE}" \
+            "${TAG_COMMIT}"
+          tar -xzf "dist/${ARCHIVE}" --strip-components=1 -C candidate
+      - name: Install released dependencies from exact artifacts
+        run: |
+          python -m pip install --upgrade pip
+          mkdir -p dependency-artifacts
+          python -m pip download \
+            --only-binary=:all: \
+            --no-deps \
+            "semantic-rails==${ENGINE_VERSION}" \
+            --dest dependency-artifacts
+          python -m pip install \
+            dependency-artifacts/*.whl \
+            "dbt-core==${DBT_RELEASE_TEST_VERSION}" \
+            "dbt-duckdb==${DBT_ADAPTER_RELEASE_TEST_VERSION}" \
+            "PyYAML>=6.0" \
+            "jsonschema>=4.23"
+      - name: Test the exact source artifact
+        run: candidate/scripts/run_integration_tests.sh
+      - name: Generate checksums and provenance
+        run: |
+          python candidate/scripts/generate_release_provenance.py \
+            --source-archive "dist/dbt-semantic-rails-contracts-${GITHUB_REF_NAME}.tar.gz" \
+            --engine-wheel-dir dependency-artifacts \
+            --output release/release-provenance.json \
+            --git-sha "${TAG_COMMIT}" \
+            --tag "${GITHUB_REF_NAME}"
+          (
+            cd dist
+            sha256sum -c ../release/SHA256SUMS
+          )
+      - name: Upload verified release assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.0
+        with:
+          name: release-assets
+          path: |
+            dist/*.tar.gz
+            release/*
+            schemas/*.json
+            compatibility.json
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - name: Download verified release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
+        with:
+          name: release-assets
+          path: release-assets
+      - name: Verify source checksum
+        run: |
+          cd release-assets/dist
+          sha256sum -c ../release/SHA256SUMS
+      - name: Publish exact verified assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "${RELEASE_TAG}" \
+            release-assets/dist/* \
+            release-assets/release/* \
+            release-assets/schemas/*.json \
+            release-assets/compatibility.json \
+            --repo "${GITHUB_REPOSITORY}" \
+            --verify-tag \
+            --generate-notes \
+            --title "dbt Semantic Rails Contracts ${RELEASE_TAG}"

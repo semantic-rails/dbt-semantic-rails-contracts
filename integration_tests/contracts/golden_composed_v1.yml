@@ -1,0 +1,43 @@
+contract_format_version: 1
+semantic:
+  producer:
+    name: semantic-rails
+    version: 0.2.0
+  packages:
+    - package_id: semantic_fixture
+      namespace: semantic_fixture
+      package_schema_version: 1
+      semantic_hash: sha256:533feaa3da635b279828e60f7d797f4ba5e6bcfdc62584ce163a2cd95157fc51
+      resources:
+        - semantic_model_id: customers
+          relation: customers
+          columns:
+            - name: customer_id
+              data_type: integer
+              required_by:
+                - entity.customer
+            - name: customer_name
+              data_type: varchar
+              required_by:
+                - dimension.customer_name
+binding:
+  kind: dbt
+  binding_version: 1
+  packages:
+    - package_id: semantic_fixture
+      policy:
+        severity: error
+        require_model_contract: true
+        require_model_version: true
+        type_check: compatible
+        allow_extra_columns: true
+      resources:
+        - semantic_model_id: customers
+          dbt_resource_type: model
+          dbt_model: customers
+          dbt_package: semantic_rails_contracts_integration_tests
+          dbt_version: 1
+          latest_version: 1
+          access: public
+          dbt_alias: customers_v1
+          contract_enforced: true

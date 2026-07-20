@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.2.0
+
+- Adds strict composed contract format v1 and dbt binding v1 validation.
+- Joins engine-owned semantic requirements to dbt bindings by package and
+  semantic model identifiers.
+- Delegates semantic parsing and fingerprinting to the public Semantic Rails
+  producer API.
+- Adds `ValidationReportV1`, schemas, golden fixtures, and stable version and
+  composition error codes.
+- Preserves legacy combined payload reads with an explicit deprecation warning;
+  all tooling now writes composed v1.
+- Adds minimum/latest dbt compatibility CI, immutable engine-candidate
+  qualification, and a build-once verified tag release workflow.
+- Adds machine-readable compatibility and release-provenance manifests tying
+  adapter artifacts to the exact approved engine commit and wheel.
+- Uses dbt Core 1.11.2 as the minimum supported release because 1.11.0 and
+  1.11.1 were yanked for installation issues.
+
 ## 0.1.0
 
 Initial public release candidate.

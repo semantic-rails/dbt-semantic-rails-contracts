@@ -242,35 +242,53 @@ def write_project(root: Path, package_root: Path, adapter: AdapterConfig) -> Non
     local_package_path = os.path.relpath(package_root, root)
     contract = {
         "semantic_rails_contracts": {
-            "packages": [
-                {
-                    "package_id": f"live_{adapter.name}",
-                    "namespace": adapter.name,
-                    "contract_version": 1,
-                    "semantic_hash": f"sha256:live-{adapter.name}",
-                    "accepted_semantic_hashes": [f"sha256:live-{adapter.name}"],
-                    "policy": {
-                        "severity": "error",
-                        "require_model_contract": True,
-                        "require_model_version": True,
-                        "type_check": "ignore",
-                        "allow_extra_columns": True,
-                    },
-                    "models": [
-                        {
-                            "semantic_model_id": "live_probe",
-                            "dbt_resource_type": "model",
-                            "dbt_model": "live_probe",
-                            "dbt_package": project_name,
-                            "dbt_version": 1,
-                            "latest_version": 1,
-                            "access": "public",
-                            "contract_enforced": True,
-                            "columns": [{"name": "probe_id"}, {"name": "probe_name"}],
-                        }
-                    ],
-                }
-            ]
+            "contract_format_version": 1,
+            "semantic": {
+                "producer": {"name": "semantic-rails", "version": "0.2.0"},
+                "packages": [
+                    {
+                        "package_id": f"live_{adapter.name}",
+                        "namespace": adapter.name,
+                        "package_schema_version": 1,
+                        "semantic_hash": f"sha256:live-{adapter.name}",
+                        "resources": [
+                            {
+                                "semantic_model_id": "live_probe",
+                                "relation": "live_probe",
+                                "columns": [{"name": "probe_id"}, {"name": "probe_name"}],
+                            }
+                        ],
+                    }
+                ],
+            },
+            "binding": {
+                "kind": "dbt",
+                "binding_version": 1,
+                "packages": [
+                    {
+                        "package_id": f"live_{adapter.name}",
+                        "policy": {
+                            "severity": "error",
+                            "require_model_contract": True,
+                            "require_model_version": True,
+                            "type_check": "ignore",
+                            "allow_extra_columns": True,
+                        },
+                        "resources": [
+                            {
+                                "semantic_model_id": "live_probe",
+                                "dbt_resource_type": "model",
+                                "dbt_model": "live_probe",
+                                "dbt_package": project_name,
+                                "dbt_version": 1,
+                                "latest_version": 1,
+                                "access": "public",
+                                "contract_enforced": True,
+                            }
+                        ],
+                    }
+                ],
+            },
         }
     }
 
@@ -282,7 +300,7 @@ def write_project(root: Path, package_root: Path, adapter: AdapterConfig) -> Non
         "model-paths": ["models"],
         "macro-paths": ["macros"],
         "clean-targets": ["target", "dbt_packages", "logs"],
-        "require-dbt-version": [">=1.11.0", "<2.0.0"],
+        "require-dbt-version": [">=1.11.2", "<2.0.0"],
         "vars": contract,
     }
     profiles = {profile_name: {"target": "live", "outputs": {"live": adapter.profile}}}
@@ -325,7 +343,7 @@ def dbt_command(adapter: AdapterConfig) -> list[str]:
     if base:
         return shlex.split(base)
     if shutil.which("uv"):
-        packages = ["dbt-core>=1.11,<2.0", adapter.package]
+        packages = ["dbt-core>=1.11.2,<2.0", adapter.package]
         if adapter.name == "motherduck":
             packages.append("duckdb==1.5.3")
         command = ["uv", "run"]

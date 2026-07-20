@@ -5,18 +5,151 @@ on:
   push:
     branches:
       - main
+  schedule:
+    - cron: "17 7 * * 1"
+  workflow_dispatch:
+    inputs:
+      engine_sha:
+        description: Exact lowercase 40-character Semantic Rails commit SHA to qualify
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dbt-contracts-ci-${{ github.workflow }}-${{ github.ref }}-${{ inputs.engine_sha || 'released' }}
+  cancel-in-progress: true
 
 jobs:
-  integration:
+  metadata:
+    name: Contract and release metadata
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7.0.0
-      - uses: actions/setup-python@v6.2.0
+      - name: Check out dbt contracts
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.12"
-      - name: Install dev dependencies
+      - name: Verify machine-readable compatibility metadata
+        run: |
+          python -m pip install "PyYAML>=6.0"
+          python scripts/verify_release_metadata.py --allow-placeholder-engine-sha
+
+  released-engine:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    needs: metadata
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compatibility: runtime-minimum
+            python-version: "3.10"
+            dbt-core: "dbt-core==1.11.2"
+            semantic-rails: ""
+            skip-export-tests: "true"
+          - compatibility: full-minimum
+            python-version: "3.11"
+            dbt-core: "dbt-core==1.11.2"
+            semantic-rails: "semantic-rails==0.2.0"
+            skip-export-tests: "false"
+          - compatibility: full-latest
+            python-version: "3.12"
+            dbt-core: "dbt-core>=1.11.2,<2.0"
+            semantic-rails: "semantic-rails>=0.2,<0.3"
+            skip-export-tests: "false"
+    name: released engine / dbt ${{ matrix.compatibility }} / Python ${{ matrix.python-version }}
+    steps:
+      - name: Check out dbt contracts
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install released compatibility environment
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements-dev.txt
+          python -m pip install \
+            "${{ matrix.dbt-core }}" \
+            "dbt-duckdb>=1.10,<2.0" \
+            "PyYAML>=6.0" \
+            "jsonschema>=4.23"
+          if [[ -n "${{ matrix.semantic-rails }}" ]]; then
+            python -m pip install "${{ matrix.semantic-rails }}"
+          fi
       - name: Run integration matrix
+        env:
+          SKIP_EXPORT_TESTS: ${{ matrix.skip-export-tests }}
+        run: ./scripts/run_integration_tests.sh
+
+  engine-candidate:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: metadata
+    continue-on-error: ${{ github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compatibility: minimum
+            python-version: "3.11"
+            dbt-core: "dbt-core==1.11.2"
+          - compatibility: latest
+            python-version: "3.12"
+            dbt-core: "dbt-core==1.12.0"
+    name: ${{ github.event_name == 'schedule' && 'advisory engine main' || 'exact engine candidate' }} / dbt ${{ matrix.compatibility }}
+    steps:
+      - name: Check out dbt contracts
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Require an immutable manual candidate identity
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          ENGINE_SHA: ${{ inputs.engine_sha }}
+        run: |
+          if [[ ! "${ENGINE_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "engine_sha must be an exact lowercase 40-character commit SHA." >&2
+            exit 1
+          fi
+      - name: Check out Semantic Rails candidate
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: semantic-rails/semantic-rails
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.engine_sha || 'main' }}
+          path: semantic-rails-engine
+      - name: Verify and record the resolved engine revision
+        env:
+          EXPECTED_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.engine_sha || '' }}
+        run: |
+          RESOLVED_SHA="$(git -C semantic-rails-engine rev-parse HEAD)"
+          if [[ -n "${EXPECTED_SHA}" && "${RESOLVED_SHA}" != "${EXPECTED_SHA}" ]]; then
+            echo "Resolved engine checkout ${RESOLVED_SHA} does not match ${EXPECTED_SHA}." >&2
+            exit 1
+          fi
+          {
+            echo "### Engine candidate"
+            echo '```text'
+            echo "${RESOLVED_SHA}"
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Build and install the exact engine wheel
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            "build>=1.2" \
+            "${{ matrix.dbt-core }}" \
+            "dbt-duckdb>=1.10,<2.0" \
+            "PyYAML>=6.0" \
+            "jsonschema>=4.23"
+          python -m build --wheel --outdir engine-dist semantic-rails-engine
+          python -m pip install engine-dist/*.whl
+          sha256sum engine-dist/*.whl >> "${GITHUB_STEP_SUMMARY}"
+      - name: Run integration matrix against the exact wheel
         run: ./scripts/run_integration_tests.sh

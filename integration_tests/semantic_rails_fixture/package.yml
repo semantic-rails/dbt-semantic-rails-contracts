@@ -5,7 +5,11 @@ package:
   namespace: semantic_fixture
   name: semantic_fixture
   warehouse: duckdb
+  default_db: fixture.duckdb
   schema_strict: true
+  seed:
+    kind: sql_script
+    source: data/seed.sql
 
 defaults:
   dimension:

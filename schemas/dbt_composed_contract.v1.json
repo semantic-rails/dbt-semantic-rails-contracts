@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://semantic-rails.com/schemas/dbt_composed_contract.v1.json",
+  "title": "Semantic Rails composed dbt contract v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_format_version", "semantic", "binding"],
+  "properties": {
+    "contract_format_version": {
+      "const": 1
+    },
+    "semantic": {
+      "$ref": "https://semantic-rails.com/schemas/semantic_contract.v1.json#/$defs/semantic"
+    },
+    "binding": {
+      "$ref": "https://semantic-rails.com/schemas/dbt_binding.v1.json"
+    }
+  }
+}

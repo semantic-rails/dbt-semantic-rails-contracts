@@ -4,3 +4,7 @@ graph:
       label: Customer
       key: customer_id
       model: customers
+    revenue:
+      label: Revenue row
+      key: order_id
+      model: revenue

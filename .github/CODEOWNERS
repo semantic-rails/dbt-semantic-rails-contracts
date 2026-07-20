@@ -1,0 +1,13 @@
+* @wtremml18
+/.github/workflows/ @wtremml18
+/dbt_project.yml @wtremml18
+/macros/ @wtremml18
+/schemas/ @wtremml18
+/compatibility.json @wtremml18
+/scripts/export_semantic_rails_contract.py @wtremml18
+/scripts/run_integration_tests.sh @wtremml18
+/scripts/generate_release_provenance.py @wtremml18
+/scripts/verify_release_metadata.py @wtremml18
+/integration_tests/contracts/ @wtremml18
+/CONTRACT_PAYLOAD_SPEC.md @wtremml18
+/RELEASE_CHECKLIST.md @wtremml18

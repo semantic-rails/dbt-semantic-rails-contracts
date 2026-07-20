@@ -2,16 +2,30 @@ models:
   revenue:
     relation: orders
     entities:
+      revenue:
+        expr: order_id
       customer:
-        expr: orders.customer_id
+        expr: customer_id
+    times:
+      ordered_at:
+        column: ordered_at
+        kind: timestamp
+        class: event_time
+        default: true
     dimensions:
-      order_month:
-        expr: DATE_TRUNC('month', orders.ordered_at)
       status_bucket:
-        expr: CASE WHEN status = 'active' THEN status ELSE 'inactive' END
+        column: status
+        kind: categorical
     measures:
       revenue:
-        expr: SUM(order_amount)
+        kind: aggregate
+        expr: order_amount
+        accumulation:
+          kind: flow
+        value_type: number
       distinct_customers:
-        expr: COUNT(DISTINCT customer_id)
-
+        kind: entity_count
+        entity_key: customer_id
+        accumulation:
+          kind: event
+        value_type: count

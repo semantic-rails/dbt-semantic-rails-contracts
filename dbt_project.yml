@@ -1,8 +1,8 @@
 name: semantic_rails_contracts
-version: 0.1.0
+version: 0.2.0
 config-version: 2
 
-require-dbt-version: [">=1.11.0", "<2.0.0"]
+require-dbt-version: [">=1.11.2", "<2.0.0"]
 
 macro-paths: ["macros"]
 clean-targets:

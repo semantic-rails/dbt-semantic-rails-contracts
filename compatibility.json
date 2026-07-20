@@ -1,0 +1,61 @@
+{
+  "manifest_version": 1,
+  "package": {
+    "name": "dbt-semantic-rails-contracts",
+    "dbt_project_name": "semantic_rails_contracts",
+    "version": "0.2.0",
+    "runtime_python": ">=3.10",
+    "export_python": ">=3.11"
+  },
+  "engine": {
+    "name": "semantic-rails",
+    "version": "0.2.0",
+    "specifier": ">=0.2,<0.3",
+    "repository": "https://github.com/semantic-rails/semantic-rails.git",
+    "tag": "v0.2.0",
+    "engine_candidate_sha": "d2adeb160a1f31f3d64b0e8b82e5c7fafd8a83df"
+  },
+  "dbt": {
+    "specifier": ">=1.11.2,<2.0",
+    "minimum_tested": "1.11.2",
+    "release_test_version": "1.12.0"
+  },
+  "dbt_adapter": {
+    "name": "dbt-duckdb",
+    "specifier": ">=1.10,<2.0",
+    "release_test_version": "1.10.1"
+  },
+  "contracts": {
+    "semantic_contract": {
+      "owner": "semantic-rails",
+      "major": 1,
+      "schema_id": "https://semantic-rails.com/schemas/semantic_contract.v1.json"
+    },
+    "binding": {
+      "owner": "dbt-semantic-rails-contracts",
+      "kind": "dbt",
+      "major": 1,
+      "schema_id": "https://semantic-rails.com/schemas/dbt_binding.v1.json"
+    },
+    "composed_contract": {
+      "owner": "dbt-semantic-rails-contracts",
+      "major": 1,
+      "schema_id": "https://semantic-rails.com/schemas/dbt_composed_contract.v1.json"
+    },
+    "validation_report": {
+      "owner": "semantic-rails",
+      "major": 1,
+      "schema_id": "https://semantic-rails.com/schemas/validation_report.v1.json"
+    },
+    "dbt_validation_report": {
+      "owner": "dbt-semantic-rails-contracts",
+      "major": 1,
+      "schema_id": "https://semantic-rails.com/schemas/dbt_validation_report.v1.json"
+    }
+  },
+  "adapter_owned_schema_files": [
+    "dbt_binding.v1.json",
+    "dbt_composed_contract.v1.json",
+    "dbt_validation_report.v1.json"
+  ]
+}

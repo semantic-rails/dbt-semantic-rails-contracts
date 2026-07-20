@@ -13,7 +13,7 @@ their dbt project, then run a macro gate in CI:
 ```yaml
 packages:
   - git: "https://github.com/semantic-rails/dbt-semantic-rails-contracts.git"
-    revision: "v0.1.0"
+    revision: "v0.2.0"
 ```
 
 Local development can use:
@@ -41,15 +41,31 @@ python scripts/run_semantic_rails_contract_matrix.py \
 
 ## Quickstart
 
-Supported dbt version: `>=1.11.0, <2.0.0`. The release verification currently
-runs on dbt Core 1.11 with DuckDB for integration coverage.
+Supported dbt version: `>=1.11.2, <2.0.0`. CI verifies the minimum supported
+dbt Core release and the newest compatible 1.x release with DuckDB. The
+dbt-native macro/runtime surface supports Python 3.10+. The optional exporter
+uses the engine's public producer API and therefore requires Python 3.11+.
+
+Required pull-request checks include a Python 3.10/dbt 1.11.2 runtime-only lane,
+a Python 3.11 lane pinned to `semantic-rails==0.2.0`, and a latest compatible
+lane resolving `semantic-rails>=0.2,<0.3`. A weekly advisory job tests engine
+`main` without making a moving branch part of the release contract. Before an engine release,
+maintainers can dispatch CI only with an exact 40-character engine commit SHA.
+That candidate is built as a wheel, the checkout identity is verified, and the
+resolved SHA is recorded. Release order is engine first, then this adapter.
+
+[`compatibility.json`](compatibility.json) is the machine-readable release
+contract. It records supported engine/dbt ranges, exact release-test versions,
+contract ownership, the engine tag, and the approved engine source commit. The
+adapter release remains blocked until that commit is filled and the public
+engine tag resolves to it.
 
 1. Install the package in your dbt project:
 
    ```yaml
    packages:
      - git: "https://github.com/semantic-rails/dbt-semantic-rails-contracts.git"
-       revision: "v0.1.0"
+       revision: "v0.2.0"
    ```
 
 2. Generate a contract payload from your Semantic Rails package:
@@ -65,8 +81,12 @@ runs on dbt Core 1.11 with DuckDB for integration coverage.
      --output semantic_rails_contract.yml
    ```
 
-3. Copy the generated `semantic_rails_contracts:` block under `vars:` in
-   `dbt_project.yml`.
+   Export requires Python 3.11+ and `semantic-rails>=0.2,<0.3`. That dependency
+   is used only by this authoring helper; dbt parse and runtime remain
+   engine-independent.
+
+3. Put the generated document under `vars.semantic_rails_contracts` in
+   `dbt_project.yml`, or commit it as a separate YAML file for the matrix runner.
 
 4. Ensure each exported dbt model has matching dbt properties:
 
@@ -94,69 +114,83 @@ runs on dbt Core 1.11 with DuckDB for integration coverage.
 ## Contract Shape
 
 Add the exported payload under `vars` in `dbt_project.yml` or pass it to
-`semantic_rails_assert_contracts --args`. See
-[CONTRACT_PAYLOAD_SPEC.md](CONTRACT_PAYLOAD_SPEC.md) for the cross-package
-schema shared with the SQLMesh package.
+`semantic_rails_assert_contracts --args`. Semantic Rails owns the canonical
+semantic contract and package fingerprint. This repository owns only the dbt
+binding and dbt graph enforcement:
+
+- canonical semantic schema:
+  `https://semantic-rails.com/schemas/semantic_contract.v1.json`
+- canonical ValidationReport schema:
+  `https://semantic-rails.com/schemas/validation_report.v1.json`
+- [dbt binding schema](schemas/dbt_binding.v1.json)
+- [composed dbt schema](schemas/dbt_composed_contract.v1.json)
+- [dbt ValidationReport specialization](schemas/dbt_validation_report.v1.json)
+- [vendored canonical ValidationReport compatibility copy](schemas/validation_report.v1.json)
+
+The installed engine package and its checksummed GitHub Release assets are
+authoritative for engine-owned contracts. The `semantic-rails.com/schemas/`
+URLs are public mirrors of those exact released bytes. This repository resolves
+composed schemas locally in CI and releases its adapter-owned schemas alongside
+its compatibility and provenance manifests.
 
 ```yaml
 vars:
   semantic_rails_contracts:
-    packages:
-      - package_id: jaffle_shop
-        namespace: jaffle
-        contract_version: 1
-        semantic_hash: "sha256:..."
-        accepted_semantic_hashes:
-          - "sha256:..."
-        policy:
-          severity: error
-          require_model_contract: true
-          require_model_version: true
-          type_check: ignore
-        models:
-          - semantic_model_id: orders
-            dbt_resource_type: model
-            dbt_model: sr_orders
-            dbt_package: jaffle_shop
-            dbt_version: 1
-            latest_version: 1
-            access: public
-            contract_enforced: true
-            allow_extra_columns: true
-            columns:
-              - name: order_id
-                required_by: ["entity.order"]
-              - name: ordered_at
-                required_by: ["time.ordered_at"]
-        resources:
-          - semantic_model_id: raw_orders
-            dbt_resource_type: source
-            dbt_source_name: app
-            dbt_source_table: raw_orders
-            dbt_package: jaffle_shop
-            dbt_schema: raw
-            columns:
-              - name: order_id
-              - name: ordered_at
+    contract_format_version: 1
+    semantic:
+      producer:
+        name: semantic-rails
+        version: 0.2.0
+      packages:
+        - package_id: jaffle_shop
+          namespace: jaffle
+          package_schema_version: 1
+          semantic_hash: "sha256:..."
+          resources:
+            - semantic_model_id: orders
+              relation: orders
+              columns:
+                - name: order_id
+                  required_by: ["entity.order"]
+                - name: ordered_at
+                  required_by: ["time.ordered_at"]
+    binding:
+      kind: dbt
+      binding_version: 1
+      packages:
+        - package_id: jaffle_shop
+          policy:
+            severity: error
+            require_model_contract: true
+            require_model_version: true
+            type_check: ignore
+          resources:
+            - semantic_model_id: orders
+              dbt_resource_type: model
+              dbt_model: sr_orders
+              dbt_package: jaffle_shop
+              dbt_version: 1
+              latest_version: 1
+              access: public
+              contract_enforced: true
 ```
 
-The package treats this payload as a compatibility contract, not as a complete
-Semantic Rails parser. That is deliberate: dbt parsing should not import a
-Python runtime or read arbitrary external files. Generate the payload outside
-dbt, commit it, and make dbt enforce the shape it owns.
+The macro validates both halves, joins resources strictly by
+`package_id + semantic_model_id`, and then checks the merged requirements
+against dbt graph metadata. A missing, duplicated, malformed, or orphaned row is
+an error; target bindings cannot redefine engine-owned required columns.
 
-`models:` is retained for the common dbt-model mapping and defaults to
-`dbt_resource_type: model`. Use `resources:` when a Semantic Rails model maps to
-a dbt `source`, `seed`, or `snapshot`, or when you want the contract to make the
-resource type explicit. Model governance fields (`dbt_version`,
-`latest_version`, `access`, `require_model_version`, and `contract_enforced`)
-only apply to `dbt_resource_type: model`.
+The legacy payload containing combined `packages/models/resources` remains
+readable during the 0.x migration window and emits
+`LEGACY_CONTRACT_FORMAT_DEPRECATED`. All repository tooling emits only composed
+contract format v1. Legacy writing will be removed before 1.0.
 
 ## Export From Semantic Rails YAML
 
-Use the helper script to generate a vars block from a Semantic Rails package.
-The script is shipped in this repository and is also available after `dbt deps`
-under `dbt_packages/semantic_rails_contracts/scripts/`.
+Use the helper script to ask the installed engine for the canonical semantic
+contract, then add a dbt binding. The script never reparses or rehashes Semantic
+Rails YAML itself. It is shipped in this repository and is also available after
+`dbt deps` under `dbt_packages/semantic_rails_contracts/scripts/`.
 
 ```shell
 python scripts/export_semantic_rails_contract.py \
@@ -171,18 +205,17 @@ python scripts/export_semantic_rails_contract.py \
   --output semantic_rails_contract.yml
 ```
 
-Copy the generated YAML under `vars:` in the dbt project, or merge it with an
-environment-specific overlay. The `semantic_hash` lets dbt projects pin known
-Semantic Rails config snapshots while still allowing a migration window through
-`accepted_semantic_hashes`.
+Put the generated YAML under `vars.semantic_rails_contracts`, or commit it as a
+standalone contract for the matrix runner. `semantic_hash` is the engine-owned
+identity of the exported package; this repository does not calculate it.
 
 The exporter supports:
 
-- directory or single-file Semantic Rails packages
+- any package layout supported by the installed Semantic Rails engine
 - explicit `--model-map semantic_model=dbt_model` overrides
 - model prefixes/suffixes for naming conventions
 - selective export with repeated `--include-model`
-- package hash pinning through `semantic_hash`
+- canonical engine producer and package fingerprint metadata
 - `--dbt-resource-type source|seed|snapshot|model` for non-model mappings
 - optional relation metadata with `--dbt-alias`, `--dbt-schema`,
   `--dbt-database`, `--dbt-identifier`, and `--dbt-relation-name`
@@ -203,7 +236,7 @@ The macro checks the parts of dbt Mesh governance that matter for consumers:
   `identifier`, or `relation_name`
 - declared dbt columns include every Semantic Rails-required column
 - optional type checks can be exact, compatible, or ignored
-- optional `accepted_semantic_hashes` pins a Semantic Rails config snapshot
+- the semantic and dbt binding packages/resources form an exact keyed join
 
 The default posture is conservative: missing models/resources, missing columns,
 model version drift, model access drift, disabled model contracts, and requested
@@ -280,8 +313,12 @@ Arguments:
 
 ### `semantic_rails_contract_report`
 
-Prints a JSON issue report without failing the invocation. This is useful while
-adopting contracts incrementally.
+Prints a versioned JSON `ValidationReportV1` without failing the invocation.
+The envelope includes `report_format_version`, `ok`, validator metadata, input
+contract/binding versions, summary counts, and stable issue objects. This is the
+machine-readable interface for CI and agents. It validates against the
+engine-owned common report schema and this repository's dbt validator
+specialization.
 
 ```shell
 dbt run-operation semantic_rails_contract_report
@@ -308,8 +345,25 @@ models:
 The package emits stable error codes intended for CI parsing:
 
 - `INVALID_CONTRACT`: missing or malformed contract payload
+- `CONTRACT_FORMAT_VERSION_REQUIRED`: composed input omitted its format version
+- `UNSUPPORTED_CONTRACT_FORMAT_VERSION`: unsupported composed format major
+- `BINDING_VERSION_REQUIRED`: dbt binding omitted its version
+- `UNSUPPORTED_BINDING_VERSION`: unsupported dbt binding major
+- `BINDING_KIND_MISMATCH`: the supplied binding is not a dbt binding
+- `PACKAGE_SCHEMA_VERSION_REQUIRED`: semantic package schema version omitted
+- `UNSUPPORTED_PACKAGE_SCHEMA_VERSION`: unsupported semantic package schema major
+- `INVALID_SEMANTIC_PACKAGE` / `INVALID_BINDING_PACKAGE`: malformed package row
+- `INVALID_SEMANTIC_RESOURCE` / `INVALID_BINDING_RESOURCE`: malformed resource row
+- `INVALID_SEMANTIC_COLUMNS` / `INVALID_SEMANTIC_COLUMN`: malformed engine-owned columns
+- `DUPLICATE_SEMANTIC_PACKAGE` / `DUPLICATE_BINDING_PACKAGE`: duplicate package key
+- `DUPLICATE_SEMANTIC_RESOURCE` / `DUPLICATE_BINDING_RESOURCE`: duplicate resource key
+- `DUPLICATE_SEMANTIC_COLUMN`: duplicate semantic column name
+- `SEMANTIC_PACKAGE_NOT_FOUND` / `DBT_BINDING_PACKAGE_NOT_FOUND`: package join mismatch
+- `SEMANTIC_RESOURCE_NOT_FOUND` / `DBT_BINDING_RESOURCE_NOT_FOUND`: resource join mismatch
+- `LEGACY_CONTRACT_FORMAT_DEPRECATED`: legacy payload was accepted during migration
+- `UNSUPPORTED_LEGACY_CONTRACT_VERSION`: unsupported explicit legacy format version
 - `INVALID_MODEL_CONTRACT`: malformed resource entry
-- `SEMANTIC_HASH_NOT_ACCEPTED`: Semantic Rails hash is outside the allowed set
+- `SEMANTIC_HASH_NOT_ACCEPTED`: legacy-only accepted-hash gate failed
 - `DBT_MODEL_NOT_FOUND`: expected dbt model is absent from the graph
 - `DBT_RESOURCE_NOT_FOUND`: expected non-model dbt resource is absent from the graph
 - `DBT_MODEL_AMBIGUOUS`: model name matched more than one dbt node
@@ -332,10 +386,11 @@ The package repository contains a self-contained dbt integration project:
 ```
 
 That script installs this package with `dbt deps`, parses a fixture project,
-exports a Semantic Rails fixture package, builds a versioned dbt model, source,
-seed, and snapshot fixture, runs the positive assertion, runs the report and
-generic test paths, verifies a two-project connector matrix, verifies warn-only
-mode, and verifies targeted negative cases for the error codes above.
+exports a Semantic Rails fixture through the engine-owned producer API, validates
+the dbt binding schema and golden composed fixture, builds a versioned dbt model,
+source, seed, and snapshot fixture, verifies `ValidationReportV1`, exercises
+legacy dual-read, runs a two-project connector matrix, and verifies targeted
+negative cases for the error codes above.
 
 The companion Jaffle harness at `../semantic-rails-dbt-jaffle` is a broader
 real-data smoke test:
@@ -369,7 +424,7 @@ remain failures because they are real connector readiness issues.
 This package verifies the dbt side of the contract: model/source/seed/snapshot
 existence, model version, latest version, access, dbt model contract
 enforcement, relation metadata, column presence, optional column type metadata,
-optional extra-column strictness, Semantic Rails hash pinning, aggregate status
+optional extra-column strictness, keyed semantic/binding composition, aggregate status
 across multiple dbt projects when the external matrix runner is used, and live
 adapter readiness when the optional live harness is run.
 

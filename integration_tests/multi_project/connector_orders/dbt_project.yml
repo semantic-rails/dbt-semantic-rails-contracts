@@ -10,4 +10,4 @@ clean-targets:
   - dbt_packages
   - logs
 
-require-dbt-version: [">=1.11.0", "<2.0.0"]
+require-dbt-version: [">=1.11.2", "<2.0.0"]

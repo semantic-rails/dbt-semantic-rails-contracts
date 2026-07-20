@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://semantic-rails.com/schemas/dbt_validation_report.v1.json",
+  "title": "Semantic Rails dbt validation report v1",
+  "description": "dbt validator specialization of the engine-owned ValidationReportV1 schema.",
+  "allOf": [
+    {
+      "$ref": "https://semantic-rails.com/schemas/validation_report.v1.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "validator": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "const": "dbt-semantic-rails-contracts"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

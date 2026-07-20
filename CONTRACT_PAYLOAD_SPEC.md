@@ -1,119 +1,70 @@
-# Semantic Rails Contract Payload Spec
+# dbt Binding Contract
 
-This file defines the payload shape shared by the dbt and SQLMesh Semantic
-Rails contract packages. Each implementation validates the same package,
-resource, column, policy, and hash concepts, then adds framework-native fields
-for dbt or SQLMesh metadata.
+Semantic Rails is the sole authority for the shared semantic contract:
 
-## Top-Level Shape
+- schema ID: `https://semantic-rails.com/schemas/semantic_contract.v1.json`
+- packaged engine schema:
+  `semantic_rails/contracts/semantic_contract.v1.json`
+- producer API:
+  `semantic_rails.contracts.export_semantic_contract(path)`
 
-The payload can be stored directly in a YAML file or nested under
-`semantic_rails_contracts`.
+This repository does not copy the semantic schema, parse Semantic Rails project
+YAML, or calculate package fingerprints. It owns:
 
-```yaml
-semantic_rails_contracts:
-  packages:
-    - package_id: jaffle_shop
-      namespace: jaffle
-      contract_version: 1
-      semantic_hash: sha256:...
-      accepted_semantic_hashes:
-        - sha256:...
-      policy:
-        severity: error
-        type_check: compatible
-        allow_extra_columns: true
-      models: []
-      resources: []
-```
+- [`schemas/dbt_binding.v1.json`](schemas/dbt_binding.v1.json)
+- [`schemas/dbt_composed_contract.v1.json`](schemas/dbt_composed_contract.v1.json)
+- [`schemas/dbt_validation_report.v1.json`](schemas/dbt_validation_report.v1.json)
+- dbt graph validation and stable dbt error codes
 
-`models` is the common path for model-backed Semantic Rails resources.
-`resources` is the explicit path for sources, seeds, snapshots, external tables,
-or any resource where the physical implementation should be named directly.
-Both lists use the same row shape.
+[`schemas/validation_report.v1.json`](schemas/validation_report.v1.json) is a
+byte-identical compatibility copy of the engine-owned common report schema, not
+a second authority. CI checks it for drift.
 
-## Package Fields
+## Composition
 
-- `package_id`: stable package identifier used in issue output
-- `namespace`: optional Semantic Rails namespace
-- `contract_version`: payload format version
-- `semantic_hash`: hash of the exported Semantic Rails package snapshot
-- `accepted_semantic_hashes`: migration window for known-compatible snapshots
-- `policy`: package defaults for resource checks
-- `models` / `resources`: resource contract rows
-
-If `accepted_semantic_hashes` is present and does not include `semantic_hash`,
-the checker must emit `SEMANTIC_HASH_NOT_ACCEPTED`.
-
-## Policy Fields
-
-- `severity`: `error` or `warn`
-- `type_check`: `ignore`, `compatible`, or `exact`
-- `allow_extra_columns`: when false, declared physical columns must be exactly
-  the Semantic Rails-required column set
-- `require_model_contract`: dbt model-contract enforcement default
-- `require_model_version`: dbt model-version enforcement default
-- `require_owner`: SQLMesh owner enforcement default
-- `require_audits`: SQLMesh audit enforcement default
-
-Resource rows may override policy fields when the implementation supports the
-override.
-
-## Resource Fields
-
-Common fields:
-
-- `semantic_model_id`: Semantic Rails model or resource identifier
-- `columns`: required physical columns
-- `severity`, `type_check`, `allow_extra_columns`: optional row-level overrides
-
-dbt fields:
-
-- `dbt_resource_type`: `model`, `source`, `seed`, or `snapshot`
-- `dbt_model`, `dbt_source_name`, `dbt_source_table`
-- `dbt_package`, `dbt_version`, `latest_version`, `access`
-- `contract_enforced`
-- `dbt_alias`, `dbt_schema`, `dbt_database`, `dbt_identifier`,
-  `dbt_relation_name`
-
-SQLMesh fields:
-
-- `sqlmesh_model`: SQLMesh model name, preferably fully qualified
-- `sqlmesh_project`, `sqlmesh_gateway`, `sqlmesh_kind`
-- `sqlmesh_external` / `external`
-- `owner`
-- `tags` / `sqlmesh_tags`
-- `audits` / `sqlmesh_audits`
-- `sqlmesh_catalog`, `sqlmesh_schema`, `sqlmesh_identifier`,
-  `sqlmesh_relation_name`
-
-Implementations may accept compatibility aliases such as `model`, `dbt_name`,
-or `sqlmesh_name`, but generated contracts should use framework-specific names.
-
-## Column Fields
+The abbreviated shape below shows ownership only; empty package arrays are not
+a valid emitted payload:
 
 ```yaml
-columns:
-  - name: customer_id
-    data_type: integer
-    required_by:
-      - entity.customer
+contract_format_version: 1
+semantic: # emitted by Semantic Rails
+  producer:
+    name: semantic-rails
+    version: 0.2.0
+  packages: []
+binding: # emitted and enforced by this package
+  kind: dbt
+  binding_version: 1
+  packages: []
 ```
 
-- `name`: required physical column name
-- `data_type`: optional expected type
-- `required_by`: optional Semantic Rails entity, dimension, measure, or time
-  field references that explain why the column is required
+The validator joins semantic and binding packages by `package_id`, then joins
+resources by `semantic_model_id`. Semantic columns always come from the engine
+section. dbt bindings name physical dbt resources and governance expectations;
+they cannot replace semantic columns.
 
-Column name comparison is case-insensitive. Type comparison is controlled by
-`type_check`: `ignore` skips type validation, `compatible` allows common
-cross-warehouse aliases, and `exact` requires the serialized physical type to
-match the exported type.
+Unknown top-level fields, unsupported versions, malformed rows or columns,
+duplicates, missing matches, and orphaned bindings fail closed with stable error
+codes.
 
-## Multi-Project Use
+## Compatibility
 
-dbt supports one active connection context per invocation. SQLMesh supports
-gateways, but each check still validates one loaded SQLMesh context. Semantic
-Rails packages that span connectors should use the package-specific matrix
-runner and one contract slice per physical project or gateway.
+`contract_format_version` and `binding_version` are independent major versions.
+Additive optional fields do not increment a major. A breaking semantic or dbt
+binding change does.
 
+The pre-v1 combined `packages/models/resources` payload is accepted temporarily
+and emits `LEGACY_CONTRACT_FORMAT_DEPRECATED`. Export tooling writes only the
+composed v1 format. Legacy write support will not be part of 1.0.
+
+Required adapter CI is pinned to released engine versions. Engine `main` is
+tested only in a scheduled advisory canary. An explicit workflow dispatch can
+qualify only an exact 40-character engine commit. Release is blocked until that
+qualified commit is recorded in `compatibility.json` and the public engine tag
+resolves to the same commit.
+
+The installed `semantic-rails` package and engine GitHub Release are the
+authoritative sources for engine-owned schema bytes. The
+`semantic-rails.com/schemas/` locations are public mirrors. Adapter releases
+include their owned schemas, the compatibility manifest, and a provenance
+record tying the tested source archive to the exact engine wheel and commit.
