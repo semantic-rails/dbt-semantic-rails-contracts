@@ -47,18 +47,21 @@ dbt-native macro/runtime surface supports Python 3.10+. The optional exporter
 uses the engine's public producer API and therefore requires Python 3.11+.
 
 Required pull-request checks include a Python 3.10/dbt 1.11.2 runtime-only lane,
-a Python 3.11 lane pinned to `semantic-rails==0.2.0`, and a latest compatible
-lane resolving `semantic-rails>=0.2,<0.3`. A weekly advisory job tests engine
-`main` without making a moving branch part of the release contract. Before an engine release,
-maintainers can dispatch CI only with an exact 40-character engine commit SHA.
-That candidate is built as a wheel, the checkout identity is verified, and the
-resolved SHA is recorded. Release order is engine first, then this adapter.
+a Python 3.11 minimum-engine lane, and a latest compatible lane. While
+`compatibility.json` declares the engine `release_state` as `candidate`, both
+engine-backed lanes build and test only the exact approved
+`engine_candidate_sha`. After that commit is tagged and published, maintainers
+change the state to `released`; the same lanes then require
+`semantic-rails==0.2.0` and `semantic-rails>=0.2,<0.3` from PyPI, with no source
+fallback. A weekly advisory job tests engine `main` without making a moving
+branch part of the release contract. Release order is engine first, then this
+adapter.
 
 [`compatibility.json`](compatibility.json) is the machine-readable release
 contract. It records supported engine/dbt ranges, exact release-test versions,
-contract ownership, the engine tag, and the approved engine source commit. The
-adapter release remains blocked until that commit is filled and the public
-engine tag resolves to it.
+contract ownership, the engine lifecycle state, the engine tag, and the
+approved engine source commit. The adapter release remains blocked until the
+state is `released` and the public engine tag resolves to that commit.
 
 1. Install the package in your dbt project:
 

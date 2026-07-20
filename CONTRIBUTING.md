@@ -40,3 +40,6 @@ the exporter against an exact engine artifact.
   exact release-test versions.
 - Qualify an immutable engine commit, release the engine first, and require the
   engine tag to resolve to that approved commit before tagging this adapter.
+- Keep `engine.release_state` at `candidate` while CI builds the approved
+  commit, then change it to `released` only after the matching PyPI artifact is
+  available. Released mode never falls back to source.

@@ -25,6 +25,11 @@ jobs:
   metadata:
     name: Contract and release metadata
     runs-on: ubuntu-latest
+    outputs:
+      engine_release_state: ${{ steps.compatibility.outputs.engine_release_state }}
+      engine_candidate_sha: ${{ steps.compatibility.outputs.engine_candidate_sha }}
+      engine_minimum_spec: ${{ steps.compatibility.outputs.engine_minimum_spec }}
+      engine_compatible_spec: ${{ steps.compatibility.outputs.engine_compatible_spec }}
     steps:
       - name: Check out dbt contracts
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -32,13 +37,16 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.12"
+      - name: Install metadata verification dependencies
+        run: python -m pip install "PyYAML>=6.0"
       - name: Verify machine-readable compatibility metadata
+        id: compatibility
         run: |
-          python -m pip install "PyYAML>=6.0"
-          python scripts/verify_release_metadata.py --allow-placeholder-engine-sha
+          python scripts/verify_release_metadata.py \
+            --github-output "${GITHUB_OUTPUT}"
           python scripts/check_schema_compatibility.py
 
-  released-engine:
+  engine-compatibility:
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     needs: metadata
     runs-on: ubuntu-latest
@@ -49,19 +57,19 @@ jobs:
           - compatibility: runtime-minimum
             python-version: "3.10"
             dbt-core: "dbt-core==1.11.2"
-            semantic-rails: ""
+            engine-selection: "none"
             skip-export-tests: "true"
           - compatibility: full-minimum
             python-version: "3.11"
             dbt-core: "dbt-core==1.11.2"
-            semantic-rails: "semantic-rails==0.2.0"
+            engine-selection: "minimum"
             skip-export-tests: "false"
           - compatibility: full-latest
             python-version: "3.12"
             dbt-core: "dbt-core>=1.11.2,<2.0"
-            semantic-rails: "semantic-rails>=0.2,<0.3"
+            engine-selection: "latest"
             skip-export-tests: "false"
-    name: released engine / dbt ${{ matrix.compatibility }} / Python ${{ matrix.python-version }}
+    name: ${{ needs.metadata.outputs.engine_release_state }} engine / dbt ${{ matrix.compatibility }} / Python ${{ matrix.python-version }}
     steps:
       - name: Check out dbt contracts
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -70,7 +78,26 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - name: Install released compatibility environment
+          cache-dependency-path: requirements-dev.txt
+      - name: Check out the exact approved engine candidate
+        if: matrix.engine-selection != 'none' && needs.metadata.outputs.engine_release_state == 'candidate'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: semantic-rails/semantic-rails
+          ref: ${{ needs.metadata.outputs.engine_candidate_sha }}
+          path: semantic-rails-engine
+      - name: Verify the exact approved engine candidate
+        if: matrix.engine-selection != 'none' && needs.metadata.outputs.engine_release_state == 'candidate'
+        env:
+          EXPECTED_SHA: ${{ needs.metadata.outputs.engine_candidate_sha }}
+        run: |
+          RESOLVED_SHA="$(git -C semantic-rails-engine rev-parse HEAD)"
+          test "$(git -C semantic-rails-engine status --porcelain)" = ""
+          if [[ "${RESOLVED_SHA}" != "${EXPECTED_SHA}" ]]; then
+            echo "Resolved engine checkout ${RESOLVED_SHA} does not match ${EXPECTED_SHA}." >&2
+            exit 1
+          fi
+      - name: Install compatibility environment
         run: |
           python -m pip install --upgrade pip
           python -m pip install \
@@ -78,9 +105,32 @@ jobs:
             "dbt-duckdb>=1.10,<2.0" \
             "PyYAML>=6.0" \
             "jsonschema>=4.23"
-          if [[ -n "${{ matrix.semantic-rails }}" ]]; then
-            python -m pip install "${{ matrix.semantic-rails }}"
-          fi
+      - name: Build and install the exact approved engine candidate
+        if: matrix.engine-selection != 'none' && needs.metadata.outputs.engine_release_state == 'candidate'
+        env:
+          EXPECTED_VERSION: ${{ needs.metadata.outputs.engine_minimum_spec }}
+        run: |
+          python -m pip install "build>=1.2"
+          python -m build --wheel --outdir engine-dist semantic-rails-engine
+          ENGINE_WHEEL="$(find engine-dist -maxdepth 1 -name 'semantic_rails-*.whl' -print -quit)"
+          test -n "${ENGINE_WHEEL}"
+          python -m pip install "${ENGINE_WHEEL}"
+          python -c \
+            'from importlib.metadata import version; import os; assert "semantic-rails==" + version("semantic-rails") == os.environ["EXPECTED_VERSION"]'
+          sha256sum "${ENGINE_WHEEL}" >> "${GITHUB_STEP_SUMMARY}"
+      - name: Install the released engine artifact
+        if: matrix.engine-selection != 'none' && needs.metadata.outputs.engine_release_state == 'released'
+        env:
+          ENGINE_SELECTION: ${{ matrix.engine-selection }}
+          ENGINE_MINIMUM_SPEC: ${{ needs.metadata.outputs.engine_minimum_spec }}
+          ENGINE_COMPATIBLE_SPEC: ${{ needs.metadata.outputs.engine_compatible_spec }}
+        run: |
+          case "${ENGINE_SELECTION}" in
+            minimum) ENGINE_SPEC="${ENGINE_MINIMUM_SPEC}" ;;
+            latest) ENGINE_SPEC="${ENGINE_COMPATIBLE_SPEC}" ;;
+            *) echo "Unknown engine selection ${ENGINE_SELECTION}." >&2; exit 1 ;;
+          esac
+          python -m pip install "${ENGINE_SPEC}"
       - name: Run integration matrix
         env:
           SKIP_EXPORT_TESTS: ${{ matrix.skip-export-tests }}
@@ -140,6 +190,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
+          cache-dependency-path: requirements-dev.txt
       - name: Build and install the exact engine wheel
         run: |
           python -m pip install --upgrade pip
@@ -158,21 +209,21 @@ jobs:
   all-checks:
     name: All checks pass
     if: ${{ always() }}
-    needs: [metadata, released-engine, engine-candidate]
+    needs: [metadata, engine-compatibility, engine-candidate]
     runs-on: ubuntu-latest
     steps:
       - name: Require every applicable compatibility lane
         env:
           EVENT_NAME: ${{ github.event_name }}
           METADATA_RESULT: ${{ needs.metadata.result }}
-          RELEASED_ENGINE_RESULT: ${{ needs['released-engine'].result }}
+          ENGINE_COMPATIBILITY_RESULT: ${{ needs['engine-compatibility'].result }}
           ENGINE_CANDIDATE_RESULT: ${{ needs['engine-candidate'].result }}
         run: |
           test "$METADATA_RESULT" = "success"
           if [[ "$EVENT_NAME" == "pull_request" || "$EVENT_NAME" == "push" ]]; then
-            test "$RELEASED_ENGINE_RESULT" = "success"
+            test "$ENGINE_COMPATIBILITY_RESULT" = "success"
             test "$ENGINE_CANDIDATE_RESULT" = "skipped"
           else
-            test "$RELEASED_ENGINE_RESULT" = "skipped"
+            test "$ENGINE_COMPATIBILITY_RESULT" = "skipped"
             test "$ENGINE_CANDIDATE_RESULT" = "success"
           fi

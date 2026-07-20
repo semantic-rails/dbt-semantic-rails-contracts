@@ -4,10 +4,14 @@ Before tagging a public release:
 
 1. Update `dbt_project.yml` `version`.
 2. Update `CHANGELOG.md`.
-3. Confirm the canonical Semantic Rails producer release required by this
-   adapter is already published and its semantic schema major is supported.
-4. Confirm the exact-SHA engine qualification workflow passed and record that
-   40-character commit in `compatibility.json`.
+3. Confirm the exact-SHA engine qualification workflow passed and record that
+   40-character commit in `compatibility.json`. Before publication, keep
+   `engine.release_state` set to `candidate` so ordinary CI builds only that
+   immutable revision.
+4. Confirm the canonical Semantic Rails producer release required by this
+   adapter is published, its semantic schema major is supported, and its tag
+   resolves to the approved commit. Then change `engine.release_state` to
+   `released` and require ordinary CI to pass against the PyPI artifact.
 5. Validate `schemas/dbt_binding.v1.json`, the composed and dbt report schema
    references, the byte-identical canonical report compatibility copy, and
    `integration_tests/contracts/golden_composed_v1.yml`. Run
@@ -27,8 +31,8 @@ Before tagging a public release:
 11. When live connector credentials are available, run
     `scripts/run_live_adapter_smoke_tests.py` for each release-supported adapter
     and record pass/block status.
-12. Run `scripts/verify_release_metadata.py` without the placeholder allowance
-    and confirm the public engine tag resolves to the approved engine commit.
+12. Run `scripts/verify_release_metadata.py --verify-engine-tag` and confirm the
+    public engine tag resolves to the approved engine commit.
 13. Confirm the `release` environment and protected tag/ruleset require an
     authorized maintainer.
 14. Create an annotated `vX.Y.Z` tag matching `dbt_project.yml`; the release
