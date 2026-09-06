@@ -14,7 +14,7 @@
     "release_state": "candidate",
     "repository": "https://github.com/semantic-rails/semantic-rails.git",
     "tag": "v0.2.0",
-    "engine_candidate_sha": "d2adeb160a1f31f3d64b0e8b82e5c7fafd8a83df"
+    "engine_candidate_sha": "97a08e07bb6e527a06ee732fe49e65bc9dea0232"
   },
   "dbt": {
     "specifier": ">=1.11.2,<2.0",
