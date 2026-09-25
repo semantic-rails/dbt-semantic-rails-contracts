@@ -30,7 +30,7 @@ def engine_exporter() -> EngineExporter:
     except (ImportError, ModuleNotFoundError) as exc:
         raise SystemExit(
             "Semantic Rails with the public contract producer API is required for export. "
-            "Install semantic-rails>=0.2,<0.3; dbt runtime macros do not import it."
+            "Install semantic-rails>=0.3,<0.4; dbt runtime macros do not import it."
         ) from exc
     return export_semantic_contract
 

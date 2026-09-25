@@ -43,3 +43,11 @@ the exporter against an exact engine artifact.
 - Keep `engine.release_state` at `candidate` while CI builds the approved
   commit, then change it to `released` only after the matching PyPI artifact is
   available. Released mode never falls back to source.
+
+The engine-backed conformance lane (skipped only in the Python 3.10 runtime
+lane) loads the versioned metric portability corpus from the installed engine
+wheel and checks the resulting validation binding against the native framework
+graph. It binds each corpus semantic model to the same-named model in
+`integration_tests/basic`, so a corpus model or column that fixture lacks fails
+here. Keep this corpus in the engine; do not copy it into this repository or add
+engine imports to native runtime validation.

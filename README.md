@@ -52,7 +52,7 @@ a Python 3.11 minimum-engine lane, and a latest compatible lane. While
 engine-backed lanes build and test only the exact approved
 `engine_candidate_sha`. After that commit is tagged and published, maintainers
 change the state to `released`; the same lanes then require
-`semantic-rails==0.2.0` and `semantic-rails>=0.2,<0.3` from PyPI, with no source
+`semantic-rails==0.3.0` and `semantic-rails>=0.3,<0.4` from PyPI, with no source
 fallback. A weekly advisory job tests engine `main` without making a moving
 branch part of the release contract. Release order is engine first, then this
 adapter.
@@ -84,7 +84,7 @@ state is `released` and the public engine tag resolves to that commit.
      --output semantic_rails_contract.yml
    ```
 
-   Export requires Python 3.11+ and `semantic-rails>=0.2,<0.3`. That dependency
+   Export requires Python 3.11+ and `semantic-rails>=0.3,<0.4`. That dependency
    is used only by this authoring helper; dbt parse and runtime remain
    engine-independent.
 
