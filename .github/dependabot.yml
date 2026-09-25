@@ -7,6 +7,11 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # compatibility.json owns these ranges; they move in reviewed pin PRs only.
+    ignore:
+      - dependency-name: "semantic-rails"
+      - dependency-name: "dbt-core"
+      - dependency-name: "dbt-duckdb"
     groups:
       pip-compatible:
         update-types: [minor, patch]
