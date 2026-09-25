@@ -10,6 +10,7 @@ MATRIX_CONFIG="${ROOT_DIR}/integration_tests/multi_project/matrix.yml"
 MATRIX_FAILURE_CONFIG="${ROOT_DIR}/integration_tests/multi_project/matrix_failure.yml"
 MATRIX_OUTPUT="${ROOT_DIR}/integration_tests/basic/target/multi_project_report.json"
 MATRIX_FAILURE_OUTPUT="${ROOT_DIR}/integration_tests/basic/target/multi_project_failure_report.json"
+PORTABILITY_OUTPUT="${ROOT_DIR}/target/portability/contract.yml"
 GOLDEN_CONTRACT="${ROOT_DIR}/integration_tests/contracts/golden_composed_v1.yml"
 
 if [[ -n "${DBT_BIN:-}" ]]; then
@@ -30,7 +31,7 @@ elif [[ -n "${SEMANTIC_RAILS_SOURCE:-}" ]] && command -v uv >/dev/null 2>&1; the
 elif python -c "from semantic_rails.contracts import export_semantic_contract" >/dev/null 2>&1; then
   PYTHON=(python)
 elif command -v uv >/dev/null 2>&1; then
-  PYTHON=(uv run --with "semantic-rails>=0.2,<0.3" --with "PyYAML>=6.0" --with "jsonschema>=4.23" python)
+  PYTHON=(uv run --with "semantic-rails>=0.3,<0.4" --with "PyYAML>=6.0" --with "jsonschema>=4.23" python)
 else
   PYTHON=(python)
 fi
@@ -129,6 +130,7 @@ PY
 cd "${PROJECT_DIR}"
 
 if [[ "${SKIP_EXPORT_TESTS:-false}" != "true" ]]; then
+run_success "engine metric portability corpus" "${PYTHON[@]}" "${ROOT_DIR}/scripts/check_metric_portability.py" "${PORTABILITY_OUTPUT}"
 run_success "export Semantic Rails fixture" "${PYTHON[@]}" "${ROOT_DIR}/scripts/export_semantic_rails_contract.py" "${EXPORT_FIXTURE}" --dbt-package semantic_rails_contracts_integration_tests --dbt-version 1 --access public --contract-enforced true --require-model-version true --output "${EXPORT_OUTPUT}"
 grep -q "contract_format_version: 1" "${EXPORT_OUTPUT}"
 grep -q "kind: dbt" "${EXPORT_OUTPUT}"
@@ -322,6 +324,9 @@ grep -q '"project_count": 2' "${MATRIX_OUTPUT}"
 grep -q '"failed_count": 0' "${MATRIX_OUTPUT}"
 run_failure "multi-project connector matrix drift" "DBT_COLUMN_MISSING" "${PYTHON[@]}" "${ROOT_DIR}/scripts/run_semantic_rails_contract_matrix.py" "${MATRIX_FAILURE_CONFIG}" --dbt-command "${DBT[*]}" --output "${MATRIX_FAILURE_OUTPUT}"
 grep -q '"failed_count": 1' "${MATRIX_FAILURE_OUTPUT}"
+if [[ "${SKIP_EXPORT_TESTS:-false}" != "true" ]]; then
+  run_success "native dbt checks engine metric corpus" "${DBT[@]}" run-operation semantic_rails_assert_contracts --profiles-dir . --args "$(cat "${PORTABILITY_OUTPUT%.yml}.json")"
+fi
 run_success "single-package mapping-model contract shape" "${DBT[@]}" run-operation semantic_rails_assert_contracts --profiles-dir . --args "{contract: {package_id: semantic_fixture, models: {customers: {dbt_model: customers, dbt_package: semantic_rails_contracts_integration_tests, dbt_version: 1, latest_version: 1, access: public, contract_enforced: true, columns: [{name: customer_id}]}}}}"
 run_success "single-package resources-only source contract shape" "${DBT[@]}" run-operation semantic_rails_assert_contracts --profiles-dir . --args "{contract: {package_id: semantic_fixture, resources: [{semantic_model_id: raw_customer_source, dbt_resource_type: source, dbt_source_name: app, dbt_source_table: raw_customers, dbt_package: semantic_rails_contracts_integration_tests, columns: [{name: customer_id}]}]}}"
 run_success "single-package resources-only snapshot contract shape" "${DBT[@]}" run-operation semantic_rails_assert_contracts --profiles-dir . --args "{contract: {package_id: semantic_fixture, resources: [{semantic_model_id: customer_seed_history, dbt_resource_type: snapshot, dbt_model: contract_seed_snapshot, dbt_package: semantic_rails_contracts_integration_tests, columns: [{name: seed_id}]}]}}"

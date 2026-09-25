@@ -9,12 +9,12 @@
   },
   "engine": {
     "name": "semantic-rails",
-    "version": "0.2.0",
-    "specifier": ">=0.2,<0.3",
+    "version": "0.3.0",
+    "specifier": ">=0.3,<0.4",
     "release_state": "candidate",
     "repository": "https://github.com/semantic-rails/semantic-rails.git",
-    "tag": "v0.2.0",
-    "engine_candidate_sha": "d2adeb160a1f31f3d64b0e8b82e5c7fafd8a83df"
+    "tag": "v0.3.0",
+    "engine_candidate_sha": "9b623761d7db1c3f55cd50c4952976a57583dbe1"
   },
   "dbt": {
     "specifier": ">=1.11.2,<2.0",

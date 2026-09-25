@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- The export helper and the engine-backed CI lanes require
+  `semantic-rails>=0.3,<0.4` (engine 0.3.0).
+- CI checks the engine's metric portability corpus against the native dbt
+  validation binding.
+
 ## 0.2.0
 
 - Adds strict composed contract format v1 and dbt binding v1 validation.
