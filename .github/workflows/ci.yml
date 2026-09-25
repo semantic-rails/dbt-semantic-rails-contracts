@@ -32,9 +32,9 @@ jobs:
       engine_compatible_spec: ${{ steps.compatibility.outputs.engine_compatible_spec }}
     steps:
       - name: Check out dbt contracts
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Install metadata verification dependencies
@@ -72,16 +72,16 @@ jobs:
     name: ${{ needs.metadata.outputs.engine_release_state }} engine / dbt ${{ matrix.compatibility }} / Python ${{ matrix.python-version }}
     steps:
       - name: Check out dbt contracts
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
           cache-dependency-path: requirements-dev.txt
       - name: Check out the exact approved engine candidate
         if: matrix.engine-selection != 'none' && needs.metadata.outputs.engine_release_state == 'candidate'
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: semantic-rails/semantic-rails
           ref: ${{ needs.metadata.outputs.engine_candidate_sha }}
@@ -154,7 +154,7 @@ jobs:
     name: ${{ github.event_name == 'schedule' && 'advisory engine main' || 'exact engine candidate' }} / dbt ${{ matrix.compatibility }}
     steps:
       - name: Check out dbt contracts
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Require an immutable manual candidate identity
         if: github.event_name == 'workflow_dispatch'
         env:
@@ -165,7 +165,7 @@ jobs:
             exit 1
           fi
       - name: Check out Semantic Rails candidate
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: semantic-rails/semantic-rails
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.engine_sha || 'main' }}
@@ -186,7 +186,7 @@ jobs:
             echo '```'
           } >> "${GITHUB_STEP_SUMMARY}"
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
