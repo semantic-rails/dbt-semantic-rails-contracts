@@ -1,5 +1,5 @@
 dbt-core>=1.11.2,<2.0
 dbt-duckdb>=1.10,<2.0
 semantic-rails>=0.3,<0.4
-PyYAML>=6.0
+PyYAML>=6.0.3
 jsonschema>=4.23
