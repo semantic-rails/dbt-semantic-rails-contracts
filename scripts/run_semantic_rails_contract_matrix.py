@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run Semantic Rails dbt contract checks across multiple dbt projects."""
+"""Run Semantic Rails dbt contract checks across one or more dbt projects."""
 
 from __future__ import annotations
 
@@ -217,9 +217,29 @@ def run_project(
     return result
 
 
+def single_project_config(args: argparse.Namespace) -> dict[str, Any]:
+    """Build a one-project matrix; command-line paths resolve from the current directory."""
+    project_dir = Path(args.project_dir or ".").expanduser().resolve()
+    project: dict[str, Any] = {
+        "name": project_dir.name,
+        "project_dir": str(project_dir),
+        "contract_file": str(Path(args.contract_file).expanduser().resolve()),
+    }
+    if args.profiles_dir:
+        project["profiles_dir"] = str(Path(args.profiles_dir).expanduser().resolve())
+    if args.target:
+        project["target"] = args.target
+    return {"projects": [project]}
+
+
 def run_matrix(args: argparse.Namespace) -> dict[str, Any]:
-    config_path = Path(args.config).expanduser().resolve()
-    config = load_yaml(config_path)
+    if args.config:
+        config_path = Path(args.config).expanduser().resolve()
+        config = load_yaml(config_path)
+        config_dir = config_path.parent
+    else:
+        config = single_project_config(args)
+        config_dir = Path.cwd()
     defaults = dict(config.get("defaults") or {})
     projects = config.get("projects")
     if not isinstance(projects, list) or not projects:
@@ -235,7 +255,7 @@ def run_matrix(args: argparse.Namespace) -> dict[str, Any]:
             raise SystemExit("each matrix projects entry must be a mapping")
         result = run_project(
             dbt_command=dbt_command,
-            config_dir=config_path.parent,
+            config_dir=config_dir,
             defaults=defaults,
             raw_project=project,
             fail_fast=args.fail_fast,
@@ -256,11 +276,28 @@ def run_matrix(args: argparse.Namespace) -> dict[str, Any]:
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("config", help="YAML matrix config with projects to check")
+    parser.add_argument(
+        "config",
+        nargs="?",
+        help="YAML matrix config with projects to check. Omit it to check one project with --contract-file.",
+    )
     parser.add_argument("--dbt-command", default=os.environ.get("DBT_COMMAND", "dbt"))
     parser.add_argument("--output", "-o", help="Write aggregate JSON report to this path")
     parser.add_argument("--fail-fast", action="store_true", help="Stop commands for a project after its first failure")
+    single = parser.add_argument_group(
+        "single project",
+        "Check one dbt project against a committed contract file instead of a matrix config.",
+    )
+    single.add_argument("--contract-file", help="Contract YAML written by export_semantic_rails_contract.py")
+    single.add_argument("--project-dir", help="dbt project directory (default: the current directory)")
+    single.add_argument("--profiles-dir", help="dbt profiles directory")
+    single.add_argument("--target", help="dbt target")
     args = parser.parse_args(argv)
+    single_options = (args.contract_file, args.project_dir, args.profiles_dir, args.target)
+    if args.config and any(single_options):
+        parser.error("--contract-file, --project-dir, --profiles-dir and --target apply only without a matrix config")
+    if not args.config and not args.contract_file:
+        parser.error("pass a matrix config, or --contract-file to check one project")
 
     if yaml is None:
         raise SystemExit("PyYAML is required. Install requirements-dev.txt or run with uv.")

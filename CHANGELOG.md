@@ -6,6 +6,18 @@
   `semantic-rails>=0.3,<0.4` (engine 0.3.0).
 - CI checks the engine's metric portability corpus against the native dbt
   validation binding.
+- `compatible` type checks accept a `uuid` column for `string` (and a string
+  column for `uuid`), and a zoned column (`timestamptz`,
+  `timestamp with time zone`, `timestamp_tz`) for `timestamp`. A `timestamp_tz`
+  requirement needs a zoned column. `exact` is unchanged.
+- Macro argument types in `macros/schema.yml` use dbt's type names, so dbt 1.12
+  parses the package without warnings.
+- `run_semantic_rails_contract_matrix.py --contract-file` checks one dbt project
+  against a committed contract file.
+- The README installs from `main` until `v0.2.0` is tagged.
+  `compatibility.json` records `package.release_state`, and
+  `verify_release_metadata.py` rejects a documented install revision that is
+  not yet published.
 
 ## 0.2.0
 

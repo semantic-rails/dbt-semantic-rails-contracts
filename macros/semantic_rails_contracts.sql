@@ -811,15 +811,24 @@
   {% if mode == 'exact' %}
     {{ return(expected == actual) }}
   {% endif %}
+  {# A UUID column satisfies a string requirement and vice versa. A plain
+     timestamp requirement accepts zoned and unzoned columns; a zoned
+     requirement (timestamp_tz) accepts only zoned columns. #}
+  {% set string_types = ['string', 'varchar', 'text', 'character varying', 'uuid'] %}
+  {% set timestamp_tz_types = ['timestamp_tz', 'timestamptz', 'timestamp with time zone'] %}
   {% set aliases = {
-    'string': ['string', 'varchar', 'text', 'character varying'],
-    'varchar': ['string', 'varchar', 'text', 'character varying'],
+    'string': string_types,
+    'varchar': string_types,
+    'uuid': string_types,
     'integer': ['int', 'integer', 'bigint', 'number', 'numeric'],
     'bigint': ['int', 'integer', 'bigint', 'number', 'numeric'],
     'numeric': ['numeric', 'number', 'decimal', 'double', 'float', 'real'],
     'double': ['numeric', 'number', 'decimal', 'double', 'float', 'real'],
     'boolean': ['boolean', 'bool'],
-    'timestamp': ['timestamp', 'timestamp_ntz', 'timestamp_tz', 'datetime'],
+    'timestamp': ['timestamp', 'timestamp_ntz', 'timestamp without time zone', 'datetime'] + timestamp_tz_types,
+    'timestamp_tz': timestamp_tz_types,
+    'timestamptz': timestamp_tz_types,
+    'timestamp with time zone': timestamp_tz_types,
     'date': ['date']
   } %}
   {% set expected_group = aliases.get(expected, [expected]) %}

@@ -1,3 +1,5 @@
 packages:
   - git: "https://github.com/semantic-rails/dbt-semantic-rails-contracts.git"
-    revision: "v0.2.0"
+    # No version is tagged yet. Pin a full commit SHA from main, or commit the
+    # package-lock.yml that dbt deps writes. Use "v0.2.0" once it is released.
+    revision: main

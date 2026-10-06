@@ -35,7 +35,12 @@ Before tagging a public release:
     public engine tag resolves to the approved engine commit.
 13. Confirm the `release` environment and protected tag/ruleset require an
     authorized maintainer.
-14. Create an annotated `vX.Y.Z` tag matching `dbt_project.yml`; the release
+14. In the release commit, set `compatibility.json` `package.release_state` to
+    `released` and change the install `revision` in `README.md` and
+    `examples/packages.yml` to `vX.Y.Z`. `verify_release_metadata.py` refuses a
+    release tag while the state is `unreleased`, and a released state whose
+    docs install anything other than that tag.
+15. Create an annotated `vX.Y.Z` tag matching `dbt_project.yml`; the release
     workflow archives once, tests the exact source archive against the exact
     engine wheel, emits checksums and provenance, then publishes those verified
     bytes in the GitHub Release.
