@@ -4,6 +4,7 @@
     "name": "dbt-semantic-rails-contracts",
     "dbt_project_name": "semantic_rails_contracts",
     "version": "0.2.0",
+    "release_state": "unreleased",
     "runtime_python": ">=3.10",
     "export_python": ">=3.11"
   },

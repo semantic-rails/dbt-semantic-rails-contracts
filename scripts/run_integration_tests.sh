@@ -10,6 +10,9 @@ MATRIX_CONFIG="${ROOT_DIR}/integration_tests/multi_project/matrix.yml"
 MATRIX_FAILURE_CONFIG="${ROOT_DIR}/integration_tests/multi_project/matrix_failure.yml"
 MATRIX_OUTPUT="${ROOT_DIR}/integration_tests/basic/target/multi_project_report.json"
 MATRIX_FAILURE_OUTPUT="${ROOT_DIR}/integration_tests/basic/target/multi_project_failure_report.json"
+SINGLE_PROJECT_OUTPUT="${ROOT_DIR}/integration_tests/basic/target/single_project_report.json"
+CONNECTOR_ORDERS_DIR="${ROOT_DIR}/integration_tests/multi_project/connector_orders"
+CONNECTOR_CUSTOMERS_DIR="${ROOT_DIR}/integration_tests/multi_project/connector_customers"
 PORTABILITY_OUTPUT="${ROOT_DIR}/target/portability/contract.yml"
 GOLDEN_CONTRACT="${ROOT_DIR}/integration_tests/contracts/golden_composed_v1.yml"
 
@@ -254,7 +257,13 @@ fi
 run_success "schema compatibility" "${PYTHON[@]}" "${ROOT_DIR}/scripts/check_schema_compatibility.py"
 run_success "clean" "${DBT[@]}" clean --profiles-dir .
 run_success "deps" "${DBT[@]}" deps --profiles-dir .
-run_success "parse" "${DBT[@]}" parse --profiles-dir .
+echo "==> expect success: parse without macro property warnings"
+PARSE_OUTPUT="$("${DBT[@]}" parse --profiles-dir . 2>&1)" || { echo "${PARSE_OUTPUT}" >&2; exit 1; }
+echo "${PARSE_OUTPUT}"
+if [[ "${PARSE_OUTPUT}" == *"for macro "* ]]; then
+  echo "dbt parse warned about this package's macro properties." >&2
+  exit 1
+fi
 run_success "build" "${DBT[@]}" build --profiles-dir .
 run_success "positive assertion from vars" "${DBT[@]}" run-operation semantic_rails_assert_contracts --profiles-dir .
 GOLDEN_ARGS="$(contract_args valid)"
@@ -324,6 +333,10 @@ grep -q '"project_count": 2' "${MATRIX_OUTPUT}"
 grep -q '"failed_count": 0' "${MATRIX_OUTPUT}"
 run_failure "multi-project connector matrix drift" "DBT_COLUMN_MISSING" "${PYTHON[@]}" "${ROOT_DIR}/scripts/run_semantic_rails_contract_matrix.py" "${MATRIX_FAILURE_CONFIG}" --dbt-command "${DBT[*]}" --output "${MATRIX_FAILURE_OUTPUT}"
 grep -q '"failed_count": 1' "${MATRIX_FAILURE_OUTPUT}"
+run_success "single project from a contract file" "${PYTHON[@]}" "${ROOT_DIR}/scripts/run_semantic_rails_contract_matrix.py" --contract-file "${CONNECTOR_ORDERS_DIR}/semantic_rails_contract.yml" --project-dir "${CONNECTOR_ORDERS_DIR}" --profiles-dir "${CONNECTOR_ORDERS_DIR}" --target dev --dbt-command "${DBT[*]}" --output "${SINGLE_PROJECT_OUTPUT}"
+grep -q '"project_count": 1' "${SINGLE_PROJECT_OUTPUT}"
+grep -q '"failed_count": 0' "${SINGLE_PROJECT_OUTPUT}"
+run_failure "single project contract file drift" "DBT_COLUMN_MISSING" "${PYTHON[@]}" "${ROOT_DIR}/scripts/run_semantic_rails_contract_matrix.py" --contract-file "${CONNECTOR_CUSTOMERS_DIR}/semantic_rails_contract_failure.yml" --project-dir "${CONNECTOR_CUSTOMERS_DIR}" --profiles-dir "${CONNECTOR_CUSTOMERS_DIR}" --target dev --dbt-command "${DBT[*]}"
 if [[ "${SKIP_EXPORT_TESTS:-false}" != "true" ]]; then
   run_success "native dbt checks engine metric corpus" "${DBT[@]}" run-operation semantic_rails_assert_contracts --profiles-dir . --args "$(cat "${PORTABILITY_OUTPUT%.yml}.json")"
 fi
@@ -361,6 +374,11 @@ run_failure "unsupported resource type" "INVALID_MODEL_CONTRACT" "${DBT[@]}" run
 run_failure "source with model-only governance fields" "INVALID_MODEL_CONTRACT" "${DBT[@]}" run-operation semantic_rails_assert_contracts --profiles-dir . --args "{contract: {packages: [{package_id: semantic_fixture, resources: [{semantic_model_id: raw_customer_source, dbt_resource_type: source, dbt_source_name: app, dbt_source_table: raw_customers, dbt_package: semantic_rails_contracts_integration_tests, dbt_version: 1, columns: [{name: customer_id}]}]}]}}"
 run_failure "missing column" "DBT_COLUMN_MISSING" "${DBT[@]}" run-operation semantic_rails_assert_contracts --profiles-dir . --args "{contract: {packages: [{package_id: semantic_fixture, models: [{semantic_model_id: customers, dbt_model: customers, dbt_package: semantic_rails_contracts_integration_tests, dbt_version: 1, columns: [{name: definitely_missing_semantic_rails_column}]}]}]}}"
 run_failure "exact type mismatch" "DBT_COLUMN_TYPE_MISMATCH" "${DBT[@]}" run-operation semantic_rails_assert_contracts --profiles-dir . --args "{contract: {packages: [{package_id: semantic_fixture, policy: {type_check: exact}, models: [{semantic_model_id: customers, dbt_model: customers, dbt_package: semantic_rails_contracts_integration_tests, dbt_version: 1, columns: [{name: customer_id, data_type: bigint}]}]}]}}"
+run_success "compatible types accept uuid and zoned columns for string and timestamp" "${DBT[@]}" run-operation semantic_rails_assert_contracts --profiles-dir . --args "{contract: {packages: [{package_id: semantic_fixture, policy: {type_check: compatible, require_model_contract: false}, models: [{semantic_model_id: warehouse_types, dbt_model: warehouse_types_probe, dbt_package: semantic_rails_contracts_integration_tests, columns: [{name: event_id, data_type: string}, {name: occurred_at, data_type: timestamp}, {name: updated_at, data_type: timestamp}, {name: recorded_at, data_type: timestamp}]}]}]}}"
+run_success "compatible types accept uuid and timestamp_tz names" "${DBT[@]}" run-operation semantic_rails_assert_contracts --profiles-dir . --args "{contract: {packages: [{package_id: semantic_fixture, policy: {type_check: compatible, require_model_contract: false}, models: [{semantic_model_id: warehouse_types, dbt_model: warehouse_types_probe, dbt_package: semantic_rails_contracts_integration_tests, columns: [{name: event_id, data_type: uuid}, {name: occurred_at, data_type: timestamp_tz}, {name: updated_at, data_type: timestamp_tz}]}, {semantic_model_id: customers, dbt_model: customers, dbt_package: semantic_rails_contracts_integration_tests, dbt_version: 1, columns: [{name: customer_name, data_type: uuid}]}]}]}}"
+run_failure "compatible timestamp_tz rejects an unzoned column" "DBT_COLUMN_TYPE_MISMATCH" "${DBT[@]}" run-operation semantic_rails_assert_contracts --profiles-dir . --args "{contract: {packages: [{package_id: semantic_fixture, policy: {type_check: compatible, require_model_contract: false}, models: [{semantic_model_id: warehouse_types, dbt_model: warehouse_types_probe, dbt_package: semantic_rails_contracts_integration_tests, columns: [{name: recorded_at, data_type: timestamp_tz}]}]}]}}"
+run_failure "exact timestamp rejects timestamptz" "DBT_COLUMN_TYPE_MISMATCH" "${DBT[@]}" run-operation semantic_rails_assert_contracts --profiles-dir . --args "{contract: {packages: [{package_id: semantic_fixture, policy: {type_check: exact, require_model_contract: false}, models: [{semantic_model_id: warehouse_types, dbt_model: warehouse_types_probe, dbt_package: semantic_rails_contracts_integration_tests, columns: [{name: occurred_at, data_type: timestamp}]}]}]}}"
+run_failure "exact string rejects uuid" "DBT_COLUMN_TYPE_MISMATCH" "${DBT[@]}" run-operation semantic_rails_assert_contracts --profiles-dir . --args "{contract: {packages: [{package_id: semantic_fixture, policy: {type_check: exact, require_model_contract: false}, models: [{semantic_model_id: warehouse_types, dbt_model: warehouse_types_probe, dbt_package: semantic_rails_contracts_integration_tests, columns: [{name: event_id, data_type: string}]}]}]}}"
 run_failure "extra column disallowed" "DBT_COLUMN_EXTRA" "${DBT[@]}" run-operation semantic_rails_assert_contracts --profiles-dir . --args "{contract: {packages: [{package_id: semantic_fixture, policy: {allow_extra_columns: false}, models: [{semantic_model_id: customers, dbt_model: customers, dbt_package: semantic_rails_contracts_integration_tests, dbt_version: 1, columns: [{name: customer_id}]}]}]}}"
 
 echo "Self-contained Semantic Rails dbt package integration matrix passed."

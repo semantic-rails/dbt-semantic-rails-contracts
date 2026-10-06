@@ -15,6 +15,10 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 ENGINE_RELEASE_STATES = {"candidate", "released"}
+PACKAGE_RELEASE_STATES = {"unreleased", "released"}
+INSTALL_DOCS = ("README.md", "examples/packages.yml")
+REVISION_RE = re.compile(r"""^\s*revision:\s*["']?([^"'\s#]+)""", re.MULTILINE)
+VERSION_TAG_RE = re.compile(r"^v\d+\.\d+\.\d+$")
 
 
 def _normalized_requirement(value: str) -> str:
@@ -53,6 +57,40 @@ def _resolve_remote_tag(repository: str, tag: str) -> str:
     return resolved
 
 
+def _version_key(value: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in value.lstrip("v").split("."))
+
+
+def _check_install_revisions(version: str, package_release_state: str) -> None:
+    """Documented installs must name a ref that exists.
+
+    A released package documents its own tag. Before that, the docs name main,
+    a full commit SHA, or an earlier version's tag.
+    """
+    tag = f"v{version}"
+    for name in INSTALL_DOCS:
+        revisions = REVISION_RE.findall((ROOT / name).read_text(encoding="utf-8"))
+        if not revisions:
+            raise SystemExit(f"{name} must document an install revision.")
+        for revision in revisions:
+            if package_release_state == "released":
+                ok = revision == tag
+            elif VERSION_TAG_RE.fullmatch(revision):
+                ok = _version_key(revision) < _version_key(version)
+            else:
+                ok = revision == "main" or SHA_RE.fullmatch(revision) is not None
+            if not ok and package_release_state == "released":
+                raise SystemExit(
+                    f"{name} installs revision {revision}; package {tag} is released, "
+                    f"so document {tag}."
+                )
+            if not ok:
+                raise SystemExit(
+                    f"{name} installs revision {revision}, but {tag} is not released yet. "
+                    "Use main, a full commit SHA, or an earlier tag."
+                )
+
+
 def _append_github_values(path: Path, rows: dict[str, str]) -> None:
     with path.open("a", encoding="utf-8") as handle:
         for key, value in rows.items():
@@ -76,6 +114,7 @@ def main(argv: list[str] | None = None) -> int:
     dbt = manifest["dbt"]
     adapter = manifest["dbt_adapter"]
     release_state = engine.get("release_state")
+    package_release_state = package.get("release_state")
 
     version = str(project["version"])
     if (
@@ -92,6 +131,15 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(
             f"Release tag {args.tag} does not match package version v{version}."
         )
+    if package_release_state not in PACKAGE_RELEASE_STATES:
+        raise SystemExit(
+            "compatibility.json package.release_state must be unreleased or released."
+        )
+    if args.tag is not None and package_release_state != "released":
+        raise SystemExit(
+            f"Set compatibility.json package.release_state to released before tagging {args.tag}."
+        )
+    _check_install_revisions(version, package_release_state)
     if engine.get("name") != "semantic-rails":
         raise SystemExit("compatibility.json engine.name must be semantic-rails.")
     if release_state not in ENGINE_RELEASE_STATES:

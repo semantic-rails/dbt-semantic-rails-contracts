@@ -24,6 +24,17 @@ models:
     versions:
       - v: 1
 
+  - name: warehouse_types_probe
+    columns:
+      - name: event_id
+        data_type: uuid
+      - name: occurred_at
+        data_type: timestamptz
+      - name: updated_at
+        data_type: timestamp with time zone
+      - name: recorded_at
+        data_type: timestamp
+
 sources:
   - name: app
     schema: main

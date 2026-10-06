@@ -13,8 +13,11 @@ their dbt project, then run a macro gate in CI:
 ```yaml
 packages:
   - git: "https://github.com/semantic-rails/dbt-semantic-rails-contracts.git"
-    revision: "v0.2.0"
+    revision: main
 ```
+
+No version of this package is tagged yet, so install from `main` (see
+[Installing before the first release](#installing-before-the-first-release)).
 
 Local development can use:
 
@@ -38,6 +41,21 @@ one dbt invocation per project and aggregate the results:
 python scripts/run_semantic_rails_contract_matrix.py \
   examples/semantic_rails_dbt_projects.yml
 ```
+
+## Installing Before the First Release
+
+`v0.2.0` is not tagged yet, so `revision: "v0.2.0"` fails with "couldn't find
+remote ref". Until it is published, install from `main`:
+
+- `dbt deps` warns that the package is pinned to a branch. Commit the
+  `package-lock.yml` that `dbt deps` writes: it records the exact commit, and
+  later `dbt deps` runs install that commit until you run `dbt deps --upgrade`.
+- To pin in `packages.yml` instead, set `revision` to a full 40-character
+  commit SHA from `main`.
+
+When the `v0.2.0` tag and GitHub Release exist, pin `revision: "v0.2.0"`.
+`compatibility.json` records whether the package version is released in
+`package.release_state`.
 
 ## Quickstart
 
@@ -68,7 +86,7 @@ state is `released` and the public engine tag resolves to that commit.
    ```yaml
    packages:
      - git: "https://github.com/semantic-rails/dbt-semantic-rails-contracts.git"
-       revision: "v0.2.0"
+       revision: main
    ```
 
 2. Generate a contract payload from your Semantic Rails package:
@@ -88,8 +106,11 @@ state is `released` and the public engine tag resolves to that commit.
    is used only by this authoring helper; dbt parse and runtime remain
    engine-independent.
 
-3. Put the generated document under `vars.semantic_rails_contracts` in
-   `dbt_project.yml`, or commit it as a separate YAML file for the matrix runner.
+3. Commit the generated file, then either check it with the runner (no copy in
+   `dbt_project.yml` needed; see
+   [One dbt project with a contract file](#one-dbt-project-with-a-contract-file)),
+   or put the generated document under `vars.semantic_rails_contracts` in
+   `dbt_project.yml`.
 
 4. Ensure each exported dbt model has matching dbt properties:
 
@@ -209,7 +230,8 @@ python scripts/export_semantic_rails_contract.py \
 ```
 
 Put the generated YAML under `vars.semantic_rails_contracts`, or commit it as a
-standalone contract for the matrix runner. `semantic_hash` is the engine-owned
+standalone contract file for the runner (`--contract-file` for one project,
+`contract_file` in a matrix). `semantic_hash` is the engine-owned
 identity of the exported package; this repository does not calculate it.
 
 The exporter supports:
@@ -238,13 +260,36 @@ The macro checks the parts of dbt Mesh governance that matter for consumers:
 - optional relation metadata checks can pin `alias`, `schema`, `database`,
   `identifier`, or `relation_name`
 - declared dbt columns include every Semantic Rails-required column
-- optional type checks can be exact, compatible, or ignored
+- optional type checks can be exact, compatible, or ignored. `exact` compares
+  type names after lowercasing. `compatible` also accepts common spellings of
+  the same type: a `string` column may be `varchar`, `text`, or `uuid` (and a
+  `uuid` column any of those), a `timestamp` column may be zoned or unzoned
+  (`timestamp_tz`, `timestamptz`, `timestamp with time zone`), and a
+  `timestamp_tz` column must be zoned
 - the semantic and dbt binding packages/resources form an exact keyed join
 
 The default posture is conservative: missing models/resources, missing columns,
 model version drift, model access drift, disabled model contracts, and requested
 relation metadata drift are errors. Extra dbt columns are allowed unless a
 contract sets `allow_extra_columns: false`.
+
+## One dbt Project With a Contract File
+
+The macro reads its payload from `vars` or `--args`, because dbt macros cannot
+read files. To check one dbt project against the exporter's committed output
+without copying it into `dbt_project.yml`, point the runner at the file:
+
+```shell
+python dbt_packages/semantic_rails_contracts/scripts/run_semantic_rails_contract_matrix.py \
+  --contract-file semantic_rails_contract.yml
+```
+
+The runner runs `dbt deps`, `dbt parse`, and then
+`semantic_rails_assert_contracts` with the file's contents as the `contract`
+argument, and exits non-zero when the check fails. `--project-dir` (default:
+the current directory), `--profiles-dir`, and `--target` set the dbt project
+and connection; these paths resolve from the current directory. `--output`
+writes the same JSON report as a matrix run.
 
 ## Multiple dbt Projects
 
@@ -310,7 +355,9 @@ dbt run-operation semantic_rails_assert_contracts
 Arguments:
 
 - `contract`: optional contract payload. When omitted, the macro reads
-  `vars.semantic_rails_contracts`.
+  `vars.semantic_rails_contracts`. To read a committed contract file, use the
+  runner's `--contract-file` option (see
+  [One dbt project with a contract file](#one-dbt-project-with-a-contract-file)).
 - `var_name`: optional dbt var name. Defaults to `semantic_rails_contracts`.
 - `warn_only`: when true, emits warnings instead of raising a compiler error.
 
