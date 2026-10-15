@@ -1,0 +1,16 @@
+model:
+  id: customers
+  relation: customers
+  entities:
+    customer: {}
+  dimensions:
+    customer_name:
+      kind: categorical
+  measures:
+    customer_count:
+      kind: entity_count
+      publish: false
+      entity_key: customer_id
+      accumulation:
+        kind: population
+      value_type: count

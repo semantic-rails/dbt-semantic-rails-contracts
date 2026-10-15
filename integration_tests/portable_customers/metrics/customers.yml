@@ -1,0 +1,6 @@
+metrics:
+  customer_count:
+    kind: aggregate
+    measure: customer_count
+    label: Distinct customers
+    value_type: number

@@ -6,6 +6,12 @@
   `semantic-rails>=0.3,<0.4` (engine 0.3.0).
 - CI checks the engine's metric portability corpus against the native dbt
   validation binding.
+- The metric portability lane exports an authored package
+  (`integration_tests/portable_customers`) checked against the engine corpus's
+  package identity and metric IDs, instead of translating the corpus with the
+  MetricFlow importer that engine 0.3.2 removes. The export fixture uses the
+  package shapes engine 0.3.2 requires (list entity keys, one model per
+  `model:` file); engine 0.3.0 loads them too.
 - `compatible` type checks accept a `uuid` column for `string` (and a string
   column for `uuid`), and a zoned column (`timestamptz`,
   `timestamp with time zone`, `timestamp_tz`) for `timestamp`. A `timestamp_tz`
