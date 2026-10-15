@@ -1,31 +1,31 @@
-models:
-  revenue:
-    relation: orders
-    entities:
-      revenue:
-        expr: order_id
-      customer:
-        expr: customer_id
-    times:
-      ordered_at:
-        column: ordered_at
-        kind: timestamp
-        class: event_time
-        default: true
-    dimensions:
-      status_bucket:
-        column: status
-        kind: categorical
-    measures:
-      revenue:
-        kind: aggregate
-        expr: order_amount
-        accumulation:
-          kind: flow
-        value_type: number
-      distinct_customers:
-        kind: entity_count
-        entity_key: customer_id
-        accumulation:
-          kind: event
-        value_type: count
+model:
+  id: revenue
+  relation: orders
+  entities:
+    revenue:
+      expr: order_id
+    customer:
+      expr: customer_id
+  times:
+    ordered_at:
+      column: ordered_at
+      kind: timestamp
+      class: event_time
+      default: true
+  dimensions:
+    status_bucket:
+      column: status
+      kind: categorical
+  measures:
+    revenue:
+      kind: aggregate
+      expr: order_amount
+      accumulation:
+        kind: flow
+      value_type: number
+    distinct_customers:
+      kind: entity_count
+      entity_key: customer_id
+      accumulation:
+        kind: event
+      value_type: count

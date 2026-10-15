@@ -45,9 +45,10 @@ the exporter against an exact engine artifact.
   available. Released mode never falls back to source.
 
 The engine-backed conformance lane (skipped only in the Python 3.10 runtime
-lane) loads the versioned metric portability corpus from the installed engine
-wheel and checks the resulting validation binding against the native framework
-graph. It binds each corpus semantic model to the same-named model in
-`integration_tests/basic`, so a corpus model or column that fixture lacks fails
-here. Keep this corpus in the engine; do not copy it into this repository or add
-engine imports to native runtime validation.
+lane) exports the authored package in `integration_tests/portable_customers`,
+requires the package identity and metric IDs that the installed engine wheel's
+metric portability corpus expects, and checks the resulting validation binding
+against the native framework graph. It binds each semantic model to the
+same-named model in `integration_tests/basic`, so a model or column that fixture
+lacks fails here. Keep the corpus in the engine; do not copy it into this
+repository or add engine imports to native runtime validation.

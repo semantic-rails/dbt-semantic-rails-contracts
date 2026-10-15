@@ -1,0 +1,9 @@
+schema_version: 1
+
+package:
+  id: portable_customers
+  namespace: portable
+  warehouse: duckdb
+  default_db: data.duckdb
+  seed:
+    kind: external
